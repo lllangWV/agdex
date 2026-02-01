@@ -59,6 +59,7 @@ export {
   rattlerBuildProvider,
   tauriProvider,
   condaForgeProvider,
+  bunProvider,
   createProvider,
   createLocalProvider,
   getProvider,

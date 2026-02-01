@@ -7,6 +7,7 @@ export { pixiProvider } from './pixi'
 export { rattlerBuildProvider } from './rattler-build'
 export { tauriProvider } from './tauri'
 export { condaForgeProvider } from './conda-forge'
+export { bunProvider } from './bun'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
@@ -16,6 +17,7 @@ import { pixiProvider } from './pixi'
 import { rattlerBuildProvider } from './rattler-build'
 import { tauriProvider } from './tauri'
 import { condaForgeProvider } from './conda-forge'
+import { bunProvider } from './bun'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -35,6 +37,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return tauriProvider
     case 'conda-forge':
       return condaForgeProvider
+    case 'bun':
+      return bunProvider
     // Add more providers as needed
     case 'vue':
     case 'svelte':
@@ -50,7 +54,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'vue', 'svelte', 'astro']
+  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'astro']
 }
 
 /**
