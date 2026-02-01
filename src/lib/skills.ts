@@ -51,20 +51,43 @@ export function parseSkillFrontmatter(content: string): SkillFrontmatter | null 
 }
 
 /**
- * Get sibling files in the same directory as SKILL.md
+ * Recursively get all files in a directory, returning paths relative to the base directory
+ */
+function getFilesRecursively(dir: string, baseDir: string): string[] {
+  const files: string[] = []
+
+  try {
+    const entries = fs.readdirSync(dir, { withFileTypes: true })
+
+    for (const entry of entries) {
+      // Skip hidden files/directories and SKILL.md
+      if (entry.name.startsWith('.') || entry.name === 'SKILL.md') continue
+
+      const fullPath = path.join(dir, entry.name)
+      const relativePath = path.relative(baseDir, fullPath)
+
+      if (entry.isDirectory()) {
+        // Recurse into subdirectories
+        files.push(...getFilesRecursively(fullPath, baseDir))
+      } else {
+        files.push(relativePath)
+      }
+    }
+  } catch {
+    // Ignore read errors
+  }
+
+  return files
+}
+
+/**
+ * Get sibling files in the same directory as SKILL.md (recursively includes nested directories)
  */
 function getSiblingFiles(skillMdPath: string): string[] {
   const dir = path.dirname(skillMdPath)
   if (!fs.existsSync(dir)) return []
 
-  try {
-    const files = fs.readdirSync(dir)
-    return files
-      .filter((f) => f !== 'SKILL.md' && !f.startsWith('.'))
-      .sort()
-  } catch {
-    return []
-  }
+  return getFilesRecursively(dir, dir).sort()
 }
 
 /**
