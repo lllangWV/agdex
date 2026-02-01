@@ -36,6 +36,7 @@ import {
   bunProvider,
   svelteProvider,
   tailwindProvider,
+  ruffProvider,
 } from '../lib/providers'
 import type { DocProvider, ProviderPreset } from '../lib/types'
 import fs from 'fs'
@@ -193,7 +194,7 @@ function autoDetectProvider(
   cwd: string
 ): { provider: DocProvider; version: string | null } | null {
   // Try each built-in provider
-  const providers: DocProvider[] = [nextjsProvider, pixiProvider, rattlerBuildProvider, tauriProvider, bunProvider, svelteProvider, tailwindProvider]
+  const providers: DocProvider[] = [nextjsProvider, pixiProvider, rattlerBuildProvider, tauriProvider, bunProvider, svelteProvider, tailwindProvider, ruffProvider]
 
   for (const provider of providers) {
     if (provider.detectVersion) {
