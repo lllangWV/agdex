@@ -146,13 +146,23 @@ export function collectDocFiles(
 
       // Check exclusion patterns
       for (const pattern of excludePatterns) {
-        if (pattern.includes('**/')) {
-          const suffix = pattern.replace('**/', '')
-          if (f.endsWith(suffix)) return false
-        } else if (pattern.startsWith('*')) {
+        // Handle **/ at start and end (e.g., **/partials/**)
+        if (pattern.startsWith('**/') && pattern.endsWith('/**')) {
+          const dirName = pattern.slice(3, -3) // Extract 'partials' from '**/partials/**'
+          if (f.includes(`/${dirName}/`) || f.startsWith(`${dirName}/`)) return false
+        }
+        // Handle **/ at start only (e.g., **/index.md)
+        else if (pattern.startsWith('**/')) {
+          const suffix = pattern.slice(3)
+          if (f.endsWith(suffix) || f === suffix) return false
+        }
+        // Handle wildcard at start (e.g., *.md)
+        else if (pattern.startsWith('*')) {
           const suffix = pattern.slice(1)
           if (f.endsWith(suffix)) return false
-        } else if (f === pattern || f.endsWith('/' + pattern)) {
+        }
+        // Exact match or directory match
+        else if (f === pattern || f.endsWith('/' + pattern)) {
           return false
         }
       }

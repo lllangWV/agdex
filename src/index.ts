@@ -52,6 +52,7 @@ export {
 export {
   nextjsProvider,
   reactProvider,
+  pixiProvider,
   createProvider,
   createLocalProvider,
   getProvider,

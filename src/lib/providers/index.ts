@@ -3,11 +3,13 @@
  */
 export { nextjsProvider } from './nextjs'
 export { reactProvider } from './react'
+export { pixiProvider } from './pixi'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
 import { nextjsProvider } from './nextjs'
 import { reactProvider } from './react'
+import { pixiProvider } from './pixi'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -19,6 +21,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return nextjsProvider
     case 'react':
       return reactProvider
+    case 'pixi':
+      return pixiProvider
     // Add more providers as needed
     case 'vue':
     case 'svelte':
@@ -34,7 +38,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'vue', 'svelte', 'astro']
+  return ['nextjs', 'react', 'pixi', 'vue', 'svelte', 'astro']
 }
 
 /**

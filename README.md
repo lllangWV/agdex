@@ -49,6 +49,12 @@ npx agentsmd-embed --provider nextjs --fw-version 15.1.0 --output CLAUDE.md
 
 # React
 npx agentsmd-embed --provider react --fw-version 18.2.0 --output AGENTS.md
+
+# Pixi (auto-detects from pixi.toml or installed version)
+npx agentsmd-embed --provider pixi --output AGENTS.md
+
+# Pixi with explicit version
+npx agentsmd-embed --provider pixi --fw-version 0.63.2 --output AGENTS.md
 ```
 
 ### Custom GitHub Repository
@@ -150,6 +156,7 @@ This format:
 |----------|--------|------------|
 | Next.js  | ✓      | vercel/next.js |
 | React    | ✓      | reactjs/react.dev |
+| Pixi     | ✓      | prefix-dev/pixi |
 | Vue      | ○      | Coming soon |
 | Svelte   | ○      | Coming soon |
 | Astro    | ○      | Coming soon |
