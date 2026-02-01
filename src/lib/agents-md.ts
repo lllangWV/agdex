@@ -19,8 +19,21 @@ import type {
   EmbedResult,
 } from './types'
 
-const START_MARKER = '<!-- AGENTS-MD-EMBED-START -->'
-const END_MARKER = '<!-- AGENTS-MD-EMBED-END -->'
+const START_MARKER_PREFIX = '<!-- AGENTS-MD-EMBED-START'
+const END_MARKER_PREFIX = '<!-- AGENTS-MD-EMBED-END'
+const MARKER_SUFFIX = ' -->'
+
+function getStartMarker(providerName?: string): string {
+  return providerName
+    ? `${START_MARKER_PREFIX}:${providerName}${MARKER_SUFFIX}`
+    : `${START_MARKER_PREFIX}${MARKER_SUFFIX}`
+}
+
+function getEndMarker(providerName?: string): string {
+  return providerName
+    ? `${END_MARKER_PREFIX}:${providerName}${MARKER_SUFFIX}`
+    : `${END_MARKER_PREFIX}${MARKER_SUFFIX}`
+}
 
 /**
  * Pull documentation from a GitHub repository
@@ -328,26 +341,62 @@ function groupByDirectory(files: string[]): Map<string, string[]> {
 }
 
 /**
- * Check if content has an existing embedded index
+ * Check if content has an existing embedded index for a specific provider
+ * If no provider specified, checks for any index
  */
-export function hasExistingIndex(content: string): boolean {
-  return content.includes(START_MARKER)
+export function hasExistingIndex(content: string, providerName?: string): boolean {
+  if (providerName) {
+    return content.includes(getStartMarker(providerName))
+  }
+  // Check for any index (with or without provider name)
+  return content.includes(START_MARKER_PREFIX)
 }
 
 /**
  * Remove the docs index from content
+ * If providerName specified, only removes that provider's index
+ * If no providerName, removes all indexes
  * Returns the content with the index removed, or unchanged if no index exists
  */
-export function removeDocsIndex(content: string): string {
-  if (!hasExistingIndex(content)) {
+export function removeDocsIndex(content: string, providerName?: string): string {
+  if (!hasExistingIndex(content, providerName)) {
     return content
   }
 
-  const startIdx = content.indexOf(START_MARKER)
-  const endIdx = content.indexOf(END_MARKER) + END_MARKER.length
+  let result = content
 
-  // Remove the index and clean up extra newlines
-  let result = content.slice(0, startIdx) + content.slice(endIdx)
+  if (providerName) {
+    // Remove specific provider's index
+    const startMarker = getStartMarker(providerName)
+    const endMarker = getEndMarker(providerName)
+    const startIdx = result.indexOf(startMarker)
+    const endIdx = result.indexOf(endMarker) + endMarker.length
+
+    if (startIdx !== -1 && endIdx > startIdx) {
+      result = result.slice(0, startIdx) + result.slice(endIdx)
+    }
+  } else {
+    // Remove all indexes (find all start markers and remove their blocks)
+    let startIdx: number
+    while ((startIdx = result.indexOf(START_MARKER_PREFIX)) !== -1) {
+      // Find the end of this start marker line
+      const startMarkerEnd = result.indexOf(MARKER_SUFFIX, startIdx) + MARKER_SUFFIX.length
+      // Extract provider name if present
+      const startMarkerContent = result.slice(startIdx, startMarkerEnd)
+      const providerMatch = startMarkerContent.match(/:([^-\s]+)/)
+      const provider = providerMatch ? providerMatch[1] : undefined
+
+      const endMarker = getEndMarker(provider)
+      const endIdx = result.indexOf(endMarker)
+
+      if (endIdx !== -1) {
+        result = result.slice(0, startIdx) + result.slice(endIdx + endMarker.length)
+      } else {
+        // Malformed - just remove the start marker to prevent infinite loop
+        result = result.slice(0, startIdx) + result.slice(startMarkerEnd)
+      }
+    }
+  }
 
   // Clean up multiple consecutive newlines (more than 2)
   result = result.replace(/\n{3,}/g, '\n\n')
@@ -364,19 +413,24 @@ export function removeDocsIndex(content: string): string {
 /**
  * Wrap content with markers
  */
-function wrapWithMarkers(content: string): string {
-  return `${START_MARKER}\n${content}\n${END_MARKER}`
+function wrapWithMarkers(content: string, providerName?: string): string {
+  const startMarker = getStartMarker(providerName)
+  const endMarker = getEndMarker(providerName)
+  return `${startMarker}\n${content}\n${endMarker}`
 }
 
 /**
  * Inject index into AGENTS.md/CLAUDE.md content
+ * If providerName specified, only replaces that provider's index (or appends if not present)
  */
-export function injectIndex(existingContent: string, indexContent: string): string {
-  const wrappedContent = wrapWithMarkers(indexContent)
+export function injectIndex(existingContent: string, indexContent: string, providerName?: string): string {
+  const wrappedContent = wrapWithMarkers(indexContent, providerName)
 
-  if (hasExistingIndex(existingContent)) {
-    const startIdx = existingContent.indexOf(START_MARKER)
-    const endIdx = existingContent.indexOf(END_MARKER) + END_MARKER.length
+  if (hasExistingIndex(existingContent, providerName)) {
+    const startMarker = getStartMarker(providerName)
+    const endMarker = getEndMarker(providerName)
+    const startIdx = existingContent.indexOf(startMarker)
+    const endIdx = existingContent.indexOf(endMarker) + endMarker.length
 
     return (
       existingContent.slice(0, startIdx) +
@@ -515,8 +569,8 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     regenerateCommand,
   })
 
-  // Inject into target file
-  const newContent = injectIndex(existingContent, indexContent)
+  // Inject into target file (use provider name for unique markers)
+  const newContent = injectIndex(existingContent, indexContent, provider.name)
   fs.writeFileSync(targetPath, newContent, 'utf-8')
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')

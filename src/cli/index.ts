@@ -376,7 +376,9 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
     regenerateCommand: `npx agdex local ${docsPath} --name "${name}" --output ${output}`,
   })
 
-  const newContent = injectIndex(existingContent, indexContent)
+  // Use a sanitized name for the marker (lowercase, no spaces)
+  const providerName = name.toLowerCase().replace(/\s+/g, '-')
+  const newContent = injectIndex(existingContent, indexContent, providerName)
   fs.writeFileSync(targetPath, newContent, 'utf-8')
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
@@ -441,6 +443,7 @@ interface RemoveCommandOptions {
   output?: string
   docs?: boolean
   skills?: boolean
+  provider?: string
 }
 
 function runRemove(options: RemoveCommandOptions): void {
@@ -464,8 +467,8 @@ function runRemove(options: RemoveCommandOptions): void {
   let docsRemoved = false
   let skillsRemoved = false
 
-  if (removeDocs && hasExistingIndex(content)) {
-    content = removeDocsIndex(content)
+  if (removeDocs && hasExistingIndex(content, options.provider)) {
+    content = removeDocsIndex(content, options.provider)
     docsRemoved = true
   }
 
@@ -484,7 +487,8 @@ function runRemove(options: RemoveCommandOptions): void {
 
   console.log('')
   if (docsRemoved) {
-    console.log(`${pc.green('✓')} Removed docs index from ${pc.bold(output)}`)
+    const providerInfo = options.provider ? ` (${options.provider})` : ' (all providers)'
+    console.log(`${pc.green('✓')} Removed docs index${providerInfo} from ${pc.bold(output)}`)
   }
   if (skillsRemoved) {
     console.log(`${pc.green('✓')} Removed skills index from ${pc.bold(output)}`)
@@ -499,6 +503,7 @@ program
   .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
   .option('--docs', 'Remove only docs index')
   .option('--skills', 'Remove only skills index')
+  .option('-p, --provider <name>', 'Remove only a specific provider\'s docs index')
   .action(runRemove)
 
 // Skills subcommands
