@@ -158,6 +158,7 @@ This format:
 | React          | ✓      | reactjs/react.dev |
 | Pixi           | ✓      | prefix-dev/pixi |
 | rattler-build  | ✓      | prefix-dev/rattler-build |
+| Tauri          | ✓      | tauri-apps/tauri-docs |
 | Vue            | ○      | Coming soon |
 | Svelte         | ○      | Coming soon |
 | Astro          | ○      | Coming soon |

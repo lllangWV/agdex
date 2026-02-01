@@ -54,6 +54,7 @@ export {
   reactProvider,
   pixiProvider,
   rattlerBuildProvider,
+  tauriProvider,
   createProvider,
   createLocalProvider,
   getProvider,

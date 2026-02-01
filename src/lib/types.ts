@@ -65,7 +65,7 @@ export interface DocProvider {
 /**
  * Built-in provider presets
  */
-export type ProviderPreset = 'nextjs' | 'react' | 'pixi' | 'rattler-build' | 'vue' | 'svelte' | 'astro'
+export type ProviderPreset = 'nextjs' | 'react' | 'pixi' | 'rattler-build' | 'tauri' | 'vue' | 'svelte' | 'astro'
 
 export interface IndexOptions {
   /** Path where docs are stored */

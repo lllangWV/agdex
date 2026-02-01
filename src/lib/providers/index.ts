@@ -5,6 +5,7 @@ export { nextjsProvider } from './nextjs'
 export { reactProvider } from './react'
 export { pixiProvider } from './pixi'
 export { rattlerBuildProvider } from './rattler-build'
+export { tauriProvider } from './tauri'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
@@ -12,6 +13,7 @@ import { nextjsProvider } from './nextjs'
 import { reactProvider } from './react'
 import { pixiProvider } from './pixi'
 import { rattlerBuildProvider } from './rattler-build'
+import { tauriProvider } from './tauri'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -27,6 +29,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return pixiProvider
     case 'rattler-build':
       return rattlerBuildProvider
+    case 'tauri':
+      return tauriProvider
     // Add more providers as needed
     case 'vue':
     case 'svelte':
@@ -42,7 +46,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'pixi', 'rattler-build', 'vue', 'svelte', 'astro']
+  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'vue', 'svelte', 'astro']
 }
 
 /**
