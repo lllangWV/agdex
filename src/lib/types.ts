@@ -115,3 +115,44 @@ export interface EmbedResult {
   gitignoreUpdated?: boolean
   error?: string
 }
+
+// Skills types
+
+export interface SkillFrontmatter {
+  name: string
+  description: string
+}
+
+export interface SkillEntry {
+  name: string
+  description: string
+  skillMdPath: string
+  siblingFiles: string[]
+  source: SkillSource
+  pluginName?: string
+}
+
+export type SkillSource = 'plugin' | 'user' | 'project'
+
+export interface SkillSourceConfig {
+  type: SkillSource
+  path: string
+  label: string
+}
+
+export interface SkillsEmbedOptions {
+  cwd: string
+  sources: SkillSourceConfig[]
+  output?: string
+}
+
+export interface SkillsEmbedResult {
+  success: boolean
+  targetFile?: string
+  skillCount?: number
+  sizeBefore?: number
+  sizeAfter?: number
+  isNewFile?: boolean
+  error?: string
+  sourceBreakdown?: Record<SkillSource, number>
+}

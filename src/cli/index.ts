@@ -15,6 +15,12 @@ import {
   ensureGitignoreEntry,
 } from '../lib/agents-md'
 import {
+  embedSkills,
+  collectAllSkills,
+  getDefaultSkillSources,
+} from '../lib/skills'
+import type { SkillSourceConfig, SkillSource } from '../lib/types'
+import {
   getProvider,
   listProviders,
   isProviderAvailable,
@@ -418,5 +424,189 @@ program
   .action(runLocal)
 
 program.command('list').description('List available documentation providers').action(runList)
+
+// Skills subcommands
+const skillsCommand = program
+  .command('skills')
+  .description('Manage Claude Code skills indexing')
+
+interface SkillsEmbedCommandOptions {
+  output?: string
+  plugin?: string[]
+  user?: boolean
+  project?: boolean
+}
+
+async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void> {
+  const cwd = process.cwd()
+  const output = options.output || 'AGENTS.md'
+
+  // Build source configuration
+  const sources = getDefaultSkillSources(cwd, {
+    includeUser: options.user !== false,
+    includeProject: options.project !== false,
+    pluginPaths: options.plugin || [],
+  })
+
+  if (sources.length === 0) {
+    console.error(pc.red('No skill sources configured. Use --plugin, --user, or --project flags.'))
+    process.exit(1)
+  }
+
+  console.log(`\nDiscovering skills from ${pc.cyan(sources.length.toString())} sources...`)
+
+  const result = await embedSkills({ cwd, sources, output })
+
+  if (!result.success) {
+    console.error(pc.red(`Failed: ${result.error}`))
+    process.exit(1)
+  }
+
+  const action = result.isNewFile ? 'Created' : 'Updated'
+  const sizeInfo = result.isNewFile
+    ? formatSize(result.sizeAfter!)
+    : `${formatSize(result.sizeBefore!)} → ${formatSize(result.sizeAfter!)}`
+
+  console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} (${sizeInfo})`)
+  console.log(`${pc.green('✓')} Indexed ${pc.bold(result.skillCount!.toString())} skills`)
+
+  // Show breakdown by source
+  if (result.sourceBreakdown) {
+    const breakdown: string[] = []
+    if (result.sourceBreakdown.plugin > 0) {
+      breakdown.push(`${result.sourceBreakdown.plugin} plugin`)
+    }
+    if (result.sourceBreakdown.user > 0) {
+      breakdown.push(`${result.sourceBreakdown.user} user`)
+    }
+    if (result.sourceBreakdown.project > 0) {
+      breakdown.push(`${result.sourceBreakdown.project} project`)
+    }
+    console.log(pc.gray(`  (${breakdown.join(', ')})`))
+  }
+
+  console.log('')
+}
+
+interface SkillsListCommandOptions {
+  plugin?: string[]
+  user?: boolean
+  project?: boolean
+}
+
+function runSkillsList(options: SkillsListCommandOptions): void {
+  const cwd = process.cwd()
+
+  // Build source configuration
+  const sources = getDefaultSkillSources(cwd, {
+    includeUser: options.user !== false,
+    includeProject: options.project !== false,
+    pluginPaths: options.plugin || [],
+  })
+
+  const skills = collectAllSkills(sources)
+
+  if (skills.length === 0) {
+    console.log(pc.yellow('\nNo skills found in any of the specified sources.\n'))
+    return
+  }
+
+  console.log(pc.cyan(`\nDiscovered ${skills.length} skills:\n`))
+
+  // Group by source
+  const grouped = new Map<string, typeof skills>()
+  for (const skill of skills) {
+    const key = skill.source === 'plugin' && skill.pluginName
+      ? `plugin:${skill.pluginName}`
+      : skill.source
+    const existing = grouped.get(key) || []
+    existing.push(skill)
+    grouped.set(key, existing)
+  }
+
+  for (const [source, sourceSkills] of grouped) {
+    console.log(pc.bold(`  ${source}:`))
+    for (const skill of sourceSkills) {
+      console.log(`    ${pc.green('•')} ${pc.bold(skill.name)} - ${skill.description}`)
+      if (skill.siblingFiles.length > 0) {
+        console.log(pc.gray(`      Files: ${skill.siblingFiles.join(', ')}`))
+      }
+    }
+    console.log('')
+  }
+}
+
+interface SkillsLocalCommandOptions {
+  output?: string
+  name?: string
+}
+
+async function runSkillsLocal(skillsPath: string, options: SkillsLocalCommandOptions): Promise<void> {
+  const cwd = process.cwd()
+  const absolutePath = path.isAbsolute(skillsPath) ? skillsPath : path.join(cwd, skillsPath)
+
+  if (!fs.existsSync(absolutePath)) {
+    console.error(pc.red(`Skills directory not found: ${skillsPath}`))
+    process.exit(1)
+  }
+
+  const output = options.output || 'AGENTS.md'
+  const label = options.name || path.basename(skillsPath)
+
+  // Determine if this is a plugin structure or flat structure
+  const hasPluginsDir = fs.existsSync(path.join(absolutePath, 'plugins'))
+
+  const sources: SkillSourceConfig[] = [{
+    type: hasPluginsDir ? 'plugin' : 'project',
+    path: absolutePath,
+    label,
+  }]
+
+  console.log(`\nDiscovering skills from ${pc.cyan(skillsPath)}...`)
+
+  const result = await embedSkills({ cwd, sources, output })
+
+  if (!result.success) {
+    console.error(pc.red(`Failed: ${result.error}`))
+    process.exit(1)
+  }
+
+  const action = result.isNewFile ? 'Created' : 'Updated'
+  const sizeInfo = result.isNewFile
+    ? formatSize(result.sizeAfter!)
+    : `${formatSize(result.sizeBefore!)} → ${formatSize(result.sizeAfter!)}`
+
+  console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} (${sizeInfo})`)
+  console.log(`${pc.green('✓')} Indexed ${pc.bold(result.skillCount!.toString())} skills`)
+  console.log('')
+}
+
+skillsCommand
+  .command('embed')
+  .description('Embed skills index into AGENTS.md')
+  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('--plugin <path...>', 'Plugin repo paths (with plugins/ structure)')
+  .option('--user', 'Include ~/.claude/skills (default: true)')
+  .option('--no-user', 'Exclude ~/.claude/skills')
+  .option('--project', 'Include .claude/skills (default: true)')
+  .option('--no-project', 'Exclude .claude/skills')
+  .action(runSkillsEmbed)
+
+skillsCommand
+  .command('list')
+  .description('List discovered skills')
+  .option('--plugin <path...>', 'Plugin repo paths (with plugins/ structure)')
+  .option('--user', 'Include ~/.claude/skills (default: true)')
+  .option('--no-user', 'Exclude ~/.claude/skills')
+  .option('--project', 'Include .claude/skills (default: true)')
+  .option('--no-project', 'Exclude .claude/skills')
+  .action(runSkillsList)
+
+skillsCommand
+  .command('local <skills-path>')
+  .description('Index skills from a local path')
+  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('-n, --name <name>', 'Label for this skill source')
+  .action(runSkillsLocal)
 
 program.parse()

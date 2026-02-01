@@ -63,6 +63,19 @@ export {
   isProviderAvailable,
 } from './lib/providers'
 
+// Skills functions
+export {
+  embedSkills,
+  collectAllSkills,
+  parseSkillFrontmatter,
+  discoverPluginSkills,
+  discoverFlatSkills,
+  generateSkillsIndex,
+  injectSkillsIndex,
+  hasExistingSkillsIndex,
+  getDefaultSkillSources,
+} from './lib/skills'
+
 // Types
 export type {
   DocProvider,
@@ -75,6 +88,12 @@ export type {
   EmbedOptions,
   EmbedResult,
   ProviderPreset,
+  SkillFrontmatter,
+  SkillEntry,
+  SkillSource,
+  SkillSourceConfig,
+  SkillsEmbedOptions,
+  SkillsEmbedResult,
 } from './lib/types'
 
 export type { GenericProviderOptions } from './lib/providers/generic'
