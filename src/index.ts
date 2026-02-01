@@ -53,6 +53,7 @@ export {
   nextjsProvider,
   reactProvider,
   pixiProvider,
+  rattlerBuildProvider,
   createProvider,
   createLocalProvider,
   getProvider,

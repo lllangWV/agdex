@@ -139,17 +139,21 @@ Some content after.`
       expect(routing.files).toHaveLength(2)
     })
 
-    it('skips single-segment paths (root-level files)', () => {
+    it('includes root-level files in a special "." section', () => {
       const files = [
-        { relativePath: 'index.mdx' },
-        { relativePath: '01-getting-started/intro.mdx' },
+        { relativePath: 'getting-started.mdx' },
+        { relativePath: 'overview.mdx' },
+        { relativePath: '01-guide/intro.mdx' },
       ]
 
       const tree = buildDocTree(files)
 
-      // Root-level index.mdx should be skipped (parts.length < 2)
-      expect(tree).toHaveLength(1)
-      expect(tree[0].name).toBe('01-getting-started')
+      // Root-level files should be in a "." section
+      expect(tree).toHaveLength(2)
+      const rootSection = tree.find((s) => s.name === '.')
+      expect(rootSection).toBeDefined()
+      expect(rootSection!.files).toHaveLength(2)
+      expect(tree.find((s) => s.name === '01-guide')).toBeDefined()
     })
 
     it('sorts sections and files alphabetically', () => {

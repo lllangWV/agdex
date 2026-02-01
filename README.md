@@ -152,14 +152,15 @@ This format:
 
 ## Available Providers
 
-| Provider | Status | Repository |
-|----------|--------|------------|
-| Next.js  | ✓      | vercel/next.js |
-| React    | ✓      | reactjs/react.dev |
-| Pixi     | ✓      | prefix-dev/pixi |
-| Vue      | ○      | Coming soon |
-| Svelte   | ○      | Coming soon |
-| Astro    | ○      | Coming soon |
+| Provider       | Status | Repository |
+|----------------|--------|------------|
+| Next.js        | ✓      | vercel/next.js |
+| React          | ✓      | reactjs/react.dev |
+| Pixi           | ✓      | prefix-dev/pixi |
+| rattler-build  | ✓      | prefix-dev/rattler-build |
+| Vue            | ○      | Coming soon |
+| Svelte         | ○      | Coming soon |
+| Astro          | ○      | Coming soon |
 
 ## How It Works
 

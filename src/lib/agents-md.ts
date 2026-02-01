@@ -186,7 +186,19 @@ export function buildDocTree(files: DocFile[]): DocSection[] {
 
   for (const file of files) {
     const parts = file.relativePath.split('/')
-    if (parts.length < 2) continue
+
+    // Handle root-level files (no directory)
+    if (parts.length === 1) {
+      if (!sections.has('.')) {
+        sections.set('.', {
+          name: '.',
+          files: [],
+          subsections: [],
+        })
+      }
+      sections.get('.')!.files.push({ relativePath: file.relativePath })
+      continue
+    }
 
     const topLevelDir = parts[0]
 
