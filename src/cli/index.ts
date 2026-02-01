@@ -55,6 +55,7 @@ interface EmbedCommandOptions {
   output?: string
   repo?: string
   docsPath?: string
+  global?: boolean
 }
 
 async function runEmbed(options: EmbedCommandOptions): Promise<void> {
@@ -95,7 +96,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
       provider = result.provider
       version = result.version
       output = result.output
-      await executeEmbed(cwd, provider, version, output)
+      await executeEmbed(cwd, provider, version, output, options.global)
       return
     }
   } else {
@@ -104,7 +105,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     provider = result.provider
     version = result.version
     output = result.output
-    await executeEmbed(cwd, provider, version, output)
+    await executeEmbed(cwd, provider, version, output, options.global)
     return
   }
 
@@ -121,17 +122,16 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     process.exit(1)
   }
 
-  await executeEmbed(cwd, provider, version, output)
+  await executeEmbed(cwd, provider, version, output, options.global)
 }
 
 async function executeEmbed(
   cwd: string,
   provider: DocProvider,
   version: string | undefined,
-  output: string
+  output: string,
+  globalCache?: boolean
 ): Promise<void> {
-  const docsDir = `.${provider.name}-docs`
-
   // Detect version if needed
   let resolvedVersion = version
   if (!resolvedVersion && provider.detectVersion) {
@@ -143,8 +143,13 @@ async function executeEmbed(
     resolvedVersion = detected.version
   }
 
+  // Determine display path for the message
+  const displayPath = globalCache
+    ? `~/.cache/agentsmd-embd/${provider.name}`
+    : `.agentsmd-embd/${provider.name}`
+
   console.log(
-    `\nDownloading ${pc.cyan(provider.displayName)} ${pc.cyan(resolvedVersion!)} documentation to ${pc.cyan(docsDir)}...`
+    `\nDownloading ${pc.cyan(provider.displayName)} ${pc.cyan(resolvedVersion!)} documentation to ${pc.cyan(displayPath)}...`
   )
 
   const result = await embed({
@@ -152,7 +157,7 @@ async function executeEmbed(
     provider,
     version: resolvedVersion,
     output,
-    docsDir,
+    globalCache,
   })
 
   if (!result.success) {
@@ -168,7 +173,7 @@ async function executeEmbed(
   console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} (${sizeInfo})`)
 
   if (result.gitignoreUpdated) {
-    console.log(`${pc.green('✓')} Added ${pc.bold(docsDir)} to .gitignore`)
+    console.log(`${pc.green('✓')} Added ${pc.bold('.agentsmd-embd')} to .gitignore`)
   }
 
   console.log('')
@@ -413,6 +418,7 @@ program
   .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
+  .option('-g, --global', 'Store docs in global cache (~/.cache/agentsmd-embd/) instead of local .agentsmd-embd/')
   .action(runEmbed)
 
 program

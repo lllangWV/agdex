@@ -46,6 +46,8 @@ export {
   injectIndex,
   hasExistingIndex,
   ensureGitignoreEntry,
+  getGlobalCacheDir,
+  getLocalCacheDir,
 } from './lib/agents-md'
 
 // Providers

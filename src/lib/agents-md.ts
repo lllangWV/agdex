@@ -391,6 +391,20 @@ export function ensureGitignoreEntry(cwd: string, docsDir: string): GitignoreSta
 }
 
 /**
+ * Get the global cache directory path
+ */
+export function getGlobalCacheDir(): string {
+  return path.join(os.homedir(), '.cache', 'agentsmd-embd')
+}
+
+/**
+ * Get the local cache directory path
+ */
+export function getLocalCacheDir(cwd: string): string {
+  return path.join(cwd, '.agentsmd-embd')
+}
+
+/**
  * High-level function to embed documentation into AGENTS.md/CLAUDE.md
  */
 export async function embed(options: EmbedOptions): Promise<EmbedResult> {
@@ -399,12 +413,34 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     provider,
     version,
     output = 'AGENTS.md',
-    docsDir = `.${provider.name}-docs`,
+    docsDir: customDocsDir,
+    globalCache = false,
   } = options
 
+  // Determine the docs directory
+  let docsPath: string
+  let docsLinkPath: string
+  let docsDir: string
+
+  if (customDocsDir) {
+    // Custom directory specified
+    docsDir = customDocsDir
+    docsPath = path.isAbsolute(customDocsDir) ? customDocsDir : path.join(cwd, customDocsDir)
+    docsLinkPath = path.isAbsolute(customDocsDir) ? customDocsDir : `./${customDocsDir}`
+  } else if (globalCache) {
+    // Global cache: ~/.cache/agentsmd-embd/{provider}
+    const cacheBase = getGlobalCacheDir()
+    docsDir = path.join(cacheBase, provider.name)
+    docsPath = docsDir
+    docsLinkPath = docsPath // Use absolute path for global cache
+  } else {
+    // Local cache: .agentsmd-embd/{provider}
+    docsDir = `.agentsmd-embd/${provider.name}`
+    docsPath = path.join(cwd, docsDir)
+    docsLinkPath = `./${docsDir}`
+  }
+
   const targetPath = path.join(cwd, output)
-  const docsPath = path.join(cwd, docsDir)
-  const docsLinkPath = `./${docsDir}`
 
   // Track file sizes
   let sizeBefore = 0
@@ -439,13 +475,17 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
 
   const sections = buildDocTree(docFiles)
 
+  // Build regenerate command
+  const globalFlag = globalCache ? ' --global' : ''
+  const regenerateCommand = `npx agentsmd-embed --provider ${provider.name} --output ${output}${globalFlag}`
+
   const indexContent = generateIndex({
     docsPath: docsLinkPath,
     sections,
     outputFile: output,
     providerName: provider.displayName,
     instruction: provider.instruction,
-    regenerateCommand: `npx agentsmd-embed --provider ${provider.name} --output ${output}`,
+    regenerateCommand,
   })
 
   // Inject into target file
@@ -454,18 +494,25 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
 
-  // Update .gitignore
-  const gitignoreResult = ensureGitignoreEntry(cwd, docsDir)
+  // Update .gitignore (only for local cache, not global)
+  let gitignoreUpdated = false
+  if (!globalCache && !customDocsDir) {
+    const gitignoreResult = ensureGitignoreEntry(cwd, '.agentsmd-embd')
+    gitignoreUpdated = gitignoreResult.updated
+  } else if (!globalCache && customDocsDir && !path.isAbsolute(customDocsDir)) {
+    const gitignoreResult = ensureGitignoreEntry(cwd, customDocsDir)
+    gitignoreUpdated = gitignoreResult.updated
+  }
 
   return {
     success: true,
     targetFile: output,
-    docsPath: docsDir,
+    docsPath: globalCache ? docsPath : docsDir,
     version: pullResult.version,
     sizeBefore,
     sizeAfter,
     isNewFile,
-    gitignoreUpdated: gitignoreResult.updated,
+    gitignoreUpdated,
   }
 }
 

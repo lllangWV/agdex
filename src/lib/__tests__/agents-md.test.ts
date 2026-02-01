@@ -5,6 +5,8 @@ import {
   hasExistingIndex,
   generateIndex,
   collectDocFiles,
+  getGlobalCacheDir,
+  getLocalCacheDir,
 } from '../agents-md'
 import fs from 'fs'
 import path from 'path'
@@ -252,6 +254,26 @@ Some content after.`
       } finally {
         fs.rmSync(tempDir, { recursive: true })
       }
+    })
+  })
+
+  describe('getGlobalCacheDir', () => {
+    it('returns path under ~/.cache/agentsmd-embd', () => {
+      const result = getGlobalCacheDir()
+      expect(result).toBe(path.join(os.homedir(), '.cache', 'agentsmd-embd'))
+    })
+  })
+
+  describe('getLocalCacheDir', () => {
+    it('returns path under cwd/.agentsmd-embd', () => {
+      const cwd = '/some/project'
+      const result = getLocalCacheDir(cwd)
+      expect(result).toBe(path.join(cwd, '.agentsmd-embd'))
+    })
+
+    it('works with different cwd values', () => {
+      expect(getLocalCacheDir('/a')).toBe('/a/.agentsmd-embd')
+      expect(getLocalCacheDir('/home/user/project')).toBe('/home/user/project/.agentsmd-embd')
     })
   })
 })

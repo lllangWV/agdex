@@ -102,6 +102,9 @@ export interface EmbedOptions {
 
   /** Directory name for downloaded docs */
   docsDir?: string
+
+  /** Use global cache directory (~/.cache/agentsmd-embd/) instead of local */
+  globalCache?: boolean
 }
 
 export interface EmbedResult {
