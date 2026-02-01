@@ -159,6 +159,7 @@ This format:
 | Pixi           | ✓      | prefix-dev/pixi |
 | rattler-build  | ✓      | prefix-dev/rattler-build |
 | Tauri          | ✓      | tauri-apps/tauri-docs |
+| conda-forge    | ✓      | conda-forge/conda-forge.github.io |
 | Vue            | ○      | Coming soon |
 | Svelte         | ○      | Coming soon |
 | Astro          | ○      | Coming soon |

@@ -55,6 +55,7 @@ export {
   pixiProvider,
   rattlerBuildProvider,
   tauriProvider,
+  condaForgeProvider,
   createProvider,
   createLocalProvider,
   getProvider,
