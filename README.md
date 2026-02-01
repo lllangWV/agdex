@@ -36,7 +36,17 @@ npx agdex
 npx agdex
 ```
 
-Prompts you to select a provider, version, and output file.
+Prompts you with options to:
+- Use a detected provider (if one is found in your project)
+- Select a built-in provider
+- Enter a GitHub repository URL or `owner/repo`
+- Index a local directory
+- Index Claude Code skills
+
+When entering a GitHub URL, you can use various formats:
+- `owner/repo` - indexes the detected docs directory
+- `https://github.com/owner/repo` - same as above
+- `https://github.com/owner/repo/tree/main/docs` - indexes a specific path
 
 ### Built-in Providers
 
@@ -58,6 +68,18 @@ npx agdex --provider pixi --fw-version 0.63.2 --output AGENTS.md
 
 # Bun (auto-detects from bun.lockb or bunfig.toml)
 npx agdex --provider bun --output AGENTS.md
+
+# Add custom description to the index
+npx agdex --provider nextjs --description "Project uses App Router only"
+```
+
+**Options:**
+```bash
+-p, --provider <name>     Documentation provider (nextjs, react, etc.)
+--fw-version <version>    Framework version (auto-detected if not provided)
+-o, --output <file>       Target file (default: AGENTS.md)
+-d, --description <text>  Additional description to include in the index
+-g, --global              Store docs in global cache (~/.cache/agdex/)
 ```
 
 ### Custom GitHub Repository
@@ -73,6 +95,45 @@ Build an index from an existing local docs directory:
 ```bash
 npx agdex local ./docs --name "My Framework" --output AGENTS.md
 ```
+
+### Skills Indexing
+
+Index Claude Code skills from your `.claude` directories:
+
+```bash
+# Index skills (auto-detects from both user and project directories)
+npx agdex skills embed
+
+# List discovered skills
+npx agdex skills list
+
+# Index from a specific local path
+npx agdex skills local ./my-skills --name "My Skills"
+```
+
+**Auto-detection locations:**
+- `~/.claude/skills` - User-level skills (shared across projects)
+- `.claude/skills` - Project-level skills (project-specific)
+
+**Options:**
+```bash
+--user          Include ~/.claude/skills (default: true)
+--no-user       Exclude ~/.claude/skills
+--project       Include .claude/skills (default: true)
+--no-project    Exclude .claude/skills
+--plugin <path> Additional plugin repo paths (with plugins/ structure)
+-o, --output    Target file (default: AGENTS.md)
+```
+
+Skills are discovered by looking for `SKILL.md` files with YAML frontmatter:
+```yaml
+---
+name: My Skill
+description: What this skill does
+---
+```
+
+The index includes skill names, descriptions, and all sibling files (recursively).
 
 ### List Available Providers
 
