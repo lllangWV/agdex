@@ -202,6 +202,116 @@ function autoDetectProvider(
   return null
 }
 
+/**
+ * Parse a GitHub URL or owner/repo string into a normalized owner/repo format
+ */
+function parseGitHubInput(input: string): { repo: string; path?: string; branch?: string } | null {
+  input = input.trim()
+
+  // Handle owner/repo format directly
+  if (/^[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+$/.test(input)) {
+    return { repo: input }
+  }
+
+  // Handle full GitHub URLs
+  // Examples:
+  // https://github.com/owner/repo
+  // https://github.com/owner/repo/tree/main/path/to/folder
+  // https://github.com/owner/repo/blob/main/README.md
+  const urlMatch = input.match(
+    /^https?:\/\/github\.com\/([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)(?:\/(?:tree|blob)\/([^/]+)(?:\/(.+))?)?/
+  )
+
+  if (urlMatch) {
+    return {
+      repo: urlMatch[1],
+      branch: urlMatch[2] || undefined,
+      path: urlMatch[3] || undefined,
+    }
+  }
+
+  return null
+}
+
+/**
+ * Check what documentation sources exist in a GitHub repo
+ */
+async function detectRepoContent(repo: string, branch?: string): Promise<{
+  hasDocs: boolean
+  hasReadme: boolean
+  hasSkills: boolean
+  docsPath?: string
+  skillsPath?: string
+  defaultBranch: string
+}> {
+  const result = {
+    hasDocs: false,
+    hasReadme: false,
+    hasSkills: false,
+    docsPath: undefined as string | undefined,
+    skillsPath: undefined as string | undefined,
+    defaultBranch: branch || 'main',
+  }
+
+  // Use gh CLI to list repo contents
+  const { execSync } = await import('child_process')
+
+  try {
+    // Get the default branch if not specified
+    if (!branch) {
+      try {
+        const repoInfo = execSync(`gh api repos/${repo} --jq '.default_branch'`, {
+          encoding: 'utf-8',
+          stdio: ['pipe', 'pipe', 'pipe'],
+        }).trim()
+        result.defaultBranch = repoInfo || 'main'
+      } catch {
+        result.defaultBranch = 'main'
+      }
+    }
+
+    // List root directory contents
+    const contents = execSync(
+      `gh api repos/${repo}/contents?ref=${result.defaultBranch} --jq '.[].name'`,
+      { encoding: 'utf-8', stdio: ['pipe', 'pipe', 'pipe'] }
+    ).trim().split('\n')
+
+    // Check for common documentation directories
+    const docsDirectories = ['docs', 'doc', 'documentation']
+    for (const dir of docsDirectories) {
+      if (contents.includes(dir)) {
+        result.hasDocs = true
+        result.docsPath = dir
+        break
+      }
+    }
+
+    // Check for README
+    const readmeFiles = ['README.md', 'README.mdx', 'readme.md', 'Readme.md']
+    for (const readme of readmeFiles) {
+      if (contents.includes(readme)) {
+        result.hasReadme = true
+        break
+      }
+    }
+
+    // Check for skills directory
+    const skillsDirectories = ['skills', '.claude/skills']
+    for (const dir of skillsDirectories) {
+      if (contents.includes(dir) || contents.includes(dir.split('/')[0])) {
+        result.hasSkills = true
+        result.skillsPath = dir
+        break
+      }
+    }
+
+  } catch {
+    // gh CLI not available or error, return defaults
+  }
+
+  return result
+}
+
 async function promptForOptions(
   cwd: string
 ): Promise<{ provider: DocProvider; version: string; output: string }> {
@@ -210,12 +320,109 @@ async function promptForOptions(
 
   console.log(pc.cyan('\nagdex - Documentation Index for AI Coding Agents\n'))
 
+  console.log(pc.gray('  Create compressed documentation indexes for AI coding assistants.'))
+  console.log(pc.gray('  Indexes are embedded into AGENTS.md/CLAUDE.md files.\n'))
+
   if (detected) {
     console.log(
-      pc.gray(`  Detected ${detected.provider.displayName} version: ${detected.version}\n`)
+      pc.green(`  ✓ Detected ${detected.provider.displayName} v${detected.version}\n`)
     )
   }
 
+  // First, ask what the user wants to do
+  const actionResponse = await prompts(
+    {
+      type: 'select',
+      name: 'action',
+      message: 'What would you like to index?',
+      choices: [
+        ...(detected ? [{
+          title: `${detected.provider.displayName} docs (detected)`,
+          value: 'detected',
+          description: `Index ${detected.provider.displayName} v${detected.version} documentation`,
+        }] : []),
+        {
+          title: 'Built-in provider',
+          value: 'provider',
+          description: 'Next.js, React, Pixi, Bun, Tauri, etc.',
+        },
+        {
+          title: 'GitHub repository',
+          value: 'github',
+          description: 'Enter a GitHub URL or owner/repo',
+        },
+        {
+          title: 'Local directory',
+          value: 'local',
+          description: 'Index docs from a local folder',
+        },
+        {
+          title: 'Skills',
+          value: 'skills',
+          description: 'Index Claude Code skills',
+        },
+      ],
+      initial: detected ? 0 : 0,
+    },
+    { onCancel }
+  )
+
+  // Handle detected provider shortcut
+  if (actionResponse.action === 'detected' && detected) {
+    const output = await promptForOutputFile()
+    return {
+      provider: detected.provider,
+      version: detected.version!,
+      output,
+    }
+  }
+
+  // Handle local directory
+  if (actionResponse.action === 'local') {
+    const localResponse = await prompts(
+      {
+        type: 'text',
+        name: 'path',
+        message: 'Path to documentation directory',
+        initial: './docs',
+        validate: (v: string) => {
+          if (!v.trim()) return 'Please enter a path'
+          const absPath = path.isAbsolute(v) ? v : path.join(cwd, v)
+          if (!fs.existsSync(absPath)) return `Directory not found: ${v}`
+          return true
+        },
+      },
+      { onCancel }
+    )
+
+    // Delegate to runLocal
+    const nameResponse = await prompts(
+      {
+        type: 'text',
+        name: 'name',
+        message: 'Display name',
+        initial: path.basename(localResponse.path),
+      },
+      { onCancel }
+    )
+
+    const output = await promptForOutputFile()
+    await runLocal(localResponse.path, { name: nameResponse.name, output })
+    process.exit(0)
+  }
+
+  // Handle skills
+  if (actionResponse.action === 'skills') {
+    await runSkillsEmbed({})
+    process.exit(0)
+  }
+
+  // Handle GitHub repository
+  if (actionResponse.action === 'github') {
+    return await promptForGitHubRepo(cwd)
+  }
+
+  // Handle built-in provider selection
   const availableProviders = listProviders().filter(isProviderAvailable)
 
   const response = await prompts(
@@ -224,13 +431,10 @@ async function promptForOptions(
         type: 'select',
         name: 'provider',
         message: 'Documentation provider',
-        choices: [
-          ...availableProviders.map((p) => ({
-            title: getProvider(p)!.displayName,
-            value: p,
-          })),
-          { title: 'Custom GitHub repo...', value: '__custom__' },
-        ],
+        choices: availableProviders.map((p) => ({
+          title: getProvider(p)!.displayName,
+          value: p,
+        })),
         initial: detected
           ? availableProviders.indexOf(detected.provider.name as ProviderPreset)
           : 0,
@@ -239,42 +443,7 @@ async function promptForOptions(
     { onCancel }
   )
 
-  let provider: DocProvider
-
-  if (response.provider === '__custom__') {
-    const customResponse = await prompts(
-      [
-        {
-          type: 'text',
-          name: 'repo',
-          message: 'GitHub repository (owner/repo)',
-          validate: (v: string) => (v.includes('/') ? true : 'Format: owner/repo'),
-        },
-        {
-          type: 'text',
-          name: 'docsPath',
-          message: 'Path to docs folder',
-          initial: 'docs',
-        },
-        {
-          type: 'text',
-          name: 'displayName',
-          message: 'Display name',
-          initial: 'Custom',
-        },
-      ],
-      { onCancel }
-    )
-
-    provider = createProvider({
-      name: 'custom',
-      displayName: customResponse.displayName,
-      repo: customResponse.repo,
-      docsPath: customResponse.docsPath,
-    })
-  } else {
-    provider = getProvider(response.provider)!
-  }
+  const provider = getProvider(response.provider)!
 
   // Get version
   let initialVersion = ''
@@ -286,31 +455,42 @@ async function promptForOptions(
   }
 
   const versionResponse = await prompts(
-    [
-      {
-        type: 'text',
-        name: 'version',
-        message: `${provider.displayName} version`,
-        initial: initialVersion,
-        validate: (v: string) => (v.trim() ? true : 'Please enter a version'),
-      },
-      {
-        type: 'select',
-        name: 'output',
-        message: 'Target file',
-        choices: [
-          { title: 'AGENTS.md', value: 'AGENTS.md' },
-          { title: 'CLAUDE.md', value: 'CLAUDE.md' },
-          { title: 'Custom...', value: '__custom__' },
-        ],
-        initial: 0,
-      },
-    ],
+    {
+      type: 'text',
+      name: 'version',
+      message: `${provider.displayName} version`,
+      initial: initialVersion,
+      validate: (v: string) => (v.trim() ? true : 'Please enter a version'),
+    },
     { onCancel }
   )
 
-  let output = versionResponse.output
-  if (output === '__custom__') {
+  const output = await promptForOutputFile()
+
+  return {
+    provider,
+    version: versionResponse.version,
+    output,
+  }
+}
+
+async function promptForOutputFile(): Promise<string> {
+  const response = await prompts(
+    {
+      type: 'select',
+      name: 'output',
+      message: 'Target file',
+      choices: [
+        { title: 'AGENTS.md', value: 'AGENTS.md' },
+        { title: 'CLAUDE.md', value: 'CLAUDE.md' },
+        { title: 'Custom...', value: '__custom__' },
+      ],
+      initial: 0,
+    },
+    { onCancel }
+  )
+
+  if (response.output === '__custom__') {
     const customOutput = await prompts(
       {
         type: 'text',
@@ -321,14 +501,192 @@ async function promptForOptions(
       },
       { onCancel }
     )
-    output = customOutput.file
+    return customOutput.file
   }
 
-  return {
-    provider,
-    version: versionResponse.version,
-    output,
+  return response.output
+}
+
+async function promptForGitHubRepo(
+  cwd: string
+): Promise<{ provider: DocProvider; version: string; output: string }> {
+  console.log('')
+  console.log(pc.gray('  Enter a GitHub URL or owner/repo. Examples:'))
+  console.log(pc.gray('    • anthropics/skills'))
+  console.log(pc.gray('    • https://github.com/vercel/next.js'))
+  console.log(pc.gray('    • https://github.com/anthropics/skills/tree/main/skills'))
+  console.log('')
+
+  const urlResponse = await prompts(
+    {
+      type: 'text',
+      name: 'url',
+      message: 'GitHub repository',
+      validate: (v: string) => {
+        if (!v.trim()) return 'Please enter a URL or owner/repo'
+        const parsed = parseGitHubInput(v)
+        if (!parsed) return 'Invalid format. Use owner/repo or a GitHub URL'
+        return true
+      },
+    },
+    { onCancel }
+  )
+
+  const parsed = parseGitHubInput(urlResponse.url)!
+
+  console.log(`\n${pc.gray('Checking repository contents...')}`)
+
+  const repoContent = await detectRepoContent(parsed.repo, parsed.branch)
+
+  // If a specific path was provided in the URL, use it directly
+  if (parsed.path) {
+    console.log(pc.green(`  ✓ Using specified path: ${parsed.path}\n`))
+
+    const nameResponse = await prompts(
+      {
+        type: 'text',
+        name: 'name',
+        message: 'Display name',
+        initial: path.basename(parsed.path) || parsed.repo.split('/')[1],
+      },
+      { onCancel }
+    )
+
+    const versionResponse = await prompts(
+      {
+        type: 'text',
+        name: 'version',
+        message: 'Version/tag (or "latest" for default branch)',
+        initial: parsed.branch || repoContent.defaultBranch,
+      },
+      { onCancel }
+    )
+
+    const output = await promptForOutputFile()
+
+    const provider = createProvider({
+      name: nameResponse.name.toLowerCase().replace(/\s+/g, '-'),
+      displayName: nameResponse.name,
+      repo: parsed.repo,
+      docsPath: parsed.path,
+    })
+
+    return { provider, version: versionResponse.version, output }
   }
+
+  // Show what was detected
+  const detected: string[] = []
+  if (repoContent.hasDocs) detected.push(`docs (${repoContent.docsPath})`)
+  if (repoContent.hasReadme) detected.push('README.md')
+  if (repoContent.hasSkills) detected.push(`skills (${repoContent.skillsPath})`)
+
+  if (detected.length > 0) {
+    console.log(pc.green(`  ✓ Found: ${detected.join(', ')}\n`))
+  } else {
+    console.log(pc.yellow('  No standard docs/skills directories detected.\n'))
+  }
+
+  // Build choices based on what's available
+  const choices: Array<{ title: string; value: string; description?: string }> = []
+
+  if (repoContent.hasDocs) {
+    choices.push({
+      title: `Documentation (${repoContent.docsPath}/)`,
+      value: 'docs',
+      description: 'Index the docs directory',
+    })
+  }
+
+  if (repoContent.hasReadme) {
+    choices.push({
+      title: 'README.md',
+      value: 'readme',
+      description: 'Index the README file',
+    })
+  }
+
+  if (repoContent.hasSkills) {
+    choices.push({
+      title: `Skills (${repoContent.skillsPath}/)`,
+      value: 'skills',
+      description: 'Index Claude Code skills',
+    })
+  }
+
+  choices.push({
+    title: 'Custom path...',
+    value: 'custom',
+    description: 'Specify a custom path in the repository',
+  })
+
+  const contentChoice = await prompts(
+    {
+      type: 'select',
+      name: 'content',
+      message: 'What would you like to index?',
+      choices,
+    },
+    { onCancel }
+  )
+
+  let docsPath: string
+  let displayName: string = parsed.repo.split('/')[1]
+
+  if (contentChoice.content === 'docs') {
+    docsPath = repoContent.docsPath!
+    displayName = `${parsed.repo.split('/')[1]} Docs`
+  } else if (contentChoice.content === 'readme') {
+    docsPath = '.'
+    displayName = `${parsed.repo.split('/')[1]} README`
+  } else if (contentChoice.content === 'skills') {
+    // Handle skills differently - use the skills embed flow
+    console.log(pc.yellow('\nSkills indexing from GitHub URLs is coming soon!'))
+    console.log(pc.gray('For now, clone the repo and use: agdex skills local <path>\n'))
+    process.exit(0)
+  } else {
+    // Custom path
+    const pathResponse = await prompts(
+      {
+        type: 'text',
+        name: 'path',
+        message: 'Path in repository',
+        initial: 'docs',
+      },
+      { onCancel }
+    )
+    docsPath = pathResponse.path
+  }
+
+  const nameResponse = await prompts(
+    {
+      type: 'text',
+      name: 'name',
+      message: 'Display name',
+      initial: displayName,
+    },
+    { onCancel }
+  )
+
+  const versionResponse = await prompts(
+    {
+      type: 'text',
+      name: 'version',
+      message: 'Version/tag (or branch name for latest)',
+      initial: repoContent.defaultBranch,
+    },
+    { onCancel }
+  )
+
+  const output = await promptForOutputFile()
+
+  const provider = createProvider({
+    name: nameResponse.name.toLowerCase().replace(/\s+/g, '-'),
+    displayName: nameResponse.name,
+    repo: parsed.repo,
+    docsPath,
+  })
+
+  return { provider, version: versionResponse.version, output }
 }
 
 // Local docs command - embed docs from a local directory
@@ -394,7 +752,7 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
 
 // List providers command
 function runList(): void {
-  console.log(pc.cyan('\nAvailable documentation providers:\n'))
+  console.log(pc.cyan('\n📚 Built-in Documentation Providers\n'))
 
   for (const preset of listProviders()) {
     const provider = getProvider(preset)
@@ -406,15 +764,37 @@ function runList(): void {
   }
 
   console.log('')
-  console.log(pc.gray('Use --provider <name> to select a provider'))
-  console.log(pc.gray('Use --repo and --docs-path for custom repositories'))
+  console.log(pc.cyan('📦 Usage Examples\n'))
+  console.log(pc.gray('  Built-in provider:'))
+  console.log(`    ${pc.white('agdex --provider nextjs')}`)
+  console.log('')
+  console.log(pc.gray('  Any GitHub repository:'))
+  console.log(`    ${pc.white('agdex --repo owner/repo --docs-path docs')}`)
+  console.log('')
+  console.log(pc.gray('  GitHub URL with path:'))
+  console.log(`    ${pc.white('agdex')} ${pc.gray('(interactive)')}`)
+  console.log(`    ${pc.gray('→ then enter:')} ${pc.white('https://github.com/anthropics/skills/tree/main/skills')}`)
+  console.log('')
+  console.log(pc.gray('  Local documentation:'))
+  console.log(`    ${pc.white('agdex local ./my-docs --name "My Docs"')}`)
+  console.log('')
+  console.log(pc.gray('  Skills indexing:'))
+  console.log(`    ${pc.white('agdex skills embed')}`)
   console.log('')
 }
 
 // Setup CLI commands
 program
   .name('agdex')
-  .description('Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents')
+  .description(`Create compressed documentation indexes for AI coding agents.
+
+Sources you can index:
+  • Built-in providers (Next.js, React, Bun, Pixi, Tauri, etc.)
+  • Any GitHub repository URL or owner/repo
+  • Local documentation directories
+  • Claude Code skills
+
+Run 'agdex' without arguments for interactive mode.`)
   .version('0.2.0')
 
 program
