@@ -1,0 +1,54 @@
+{
+  "name": "agentsmd-embed",
+  "version": "0.1.0",
+  "description": "Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents",
+  "module": "dist/index.js",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "type": "module",
+  "bin": {
+    "agentsmd-embed": "./dist/cli/index.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "bun build ./src/index.ts ./src/cli/index.ts --outdir ./dist --target node --splitting && bun run build:types",
+    "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
+    "dev": "bun run --watch src/cli/index.ts",
+    "test": "bun test",
+    "prepublishOnly": "bun run build"
+  },
+  "dependencies": {
+    "commander": "^12.1.0",
+    "picocolors": "^1.1.1",
+    "prompts": "^2.4.2"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/prompts": "^2.4.9"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "keywords": [
+    "agents",
+    "claude",
+    "cursor",
+    "ai",
+    "documentation",
+    "coding-agents",
+    "agentsmd"
+  ],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/agentsmd-embed"
+  }
+}
