@@ -335,6 +335,33 @@ export function hasExistingIndex(content: string): boolean {
 }
 
 /**
+ * Remove the docs index from content
+ * Returns the content with the index removed, or unchanged if no index exists
+ */
+export function removeDocsIndex(content: string): string {
+  if (!hasExistingIndex(content)) {
+    return content
+  }
+
+  const startIdx = content.indexOf(START_MARKER)
+  const endIdx = content.indexOf(END_MARKER) + END_MARKER.length
+
+  // Remove the index and clean up extra newlines
+  let result = content.slice(0, startIdx) + content.slice(endIdx)
+
+  // Clean up multiple consecutive newlines (more than 2)
+  result = result.replace(/\n{3,}/g, '\n\n')
+
+  // Trim trailing whitespace but keep one newline at end if file had content
+  result = result.trimEnd()
+  if (result.length > 0) {
+    result += '\n'
+  }
+
+  return result
+}
+
+/**
  * Wrap content with markers
  */
 function wrapWithMarkers(content: string): string {

@@ -45,6 +45,7 @@ export {
   generateIndex,
   injectIndex,
   hasExistingIndex,
+  removeDocsIndex,
   ensureGitignoreEntry,
   getGlobalCacheDir,
   getLocalCacheDir,
@@ -75,6 +76,7 @@ export {
   generateSkillsIndex,
   injectSkillsIndex,
   hasExistingSkillsIndex,
+  removeSkillsIndex,
   getDefaultSkillSources,
 } from './lib/skills'
 

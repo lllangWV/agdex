@@ -13,11 +13,15 @@ import {
   generateIndex,
   injectIndex,
   ensureGitignoreEntry,
+  hasExistingIndex,
+  removeDocsIndex,
 } from '../lib/agents-md'
 import {
   embedSkills,
   collectAllSkills,
   getDefaultSkillSources,
+  hasExistingSkillsIndex,
+  removeSkillsIndex,
 } from '../lib/skills'
 import type { SkillSourceConfig, SkillSource } from '../lib/types'
 import {
@@ -430,6 +434,71 @@ program
   .action(runLocal)
 
 program.command('list').description('List available documentation providers').action(runList)
+
+// Remove command
+interface RemoveCommandOptions {
+  output?: string
+  docs?: boolean
+  skills?: boolean
+}
+
+function runRemove(options: RemoveCommandOptions): void {
+  const cwd = process.cwd()
+  const output = options.output || 'AGENTS.md'
+  const targetPath = path.join(cwd, output)
+
+  if (!fs.existsSync(targetPath)) {
+    console.error(pc.red(`File not found: ${output}`))
+    process.exit(1)
+  }
+
+  let content = fs.readFileSync(targetPath, 'utf-8')
+  const sizeBefore = Buffer.byteLength(content, 'utf-8')
+
+  // Determine what to remove
+  const removeAll = !options.docs && !options.skills
+  const removeDocs = removeAll || options.docs
+  const removeSkillsIdx = removeAll || options.skills
+
+  let docsRemoved = false
+  let skillsRemoved = false
+
+  if (removeDocs && hasExistingIndex(content)) {
+    content = removeDocsIndex(content)
+    docsRemoved = true
+  }
+
+  if (removeSkillsIdx && hasExistingSkillsIndex(content)) {
+    content = removeSkillsIndex(content)
+    skillsRemoved = true
+  }
+
+  if (!docsRemoved && !skillsRemoved) {
+    console.log(pc.yellow('\nNo indices found to remove.\n'))
+    return
+  }
+
+  fs.writeFileSync(targetPath, content, 'utf-8')
+  const sizeAfter = Buffer.byteLength(content, 'utf-8')
+
+  console.log('')
+  if (docsRemoved) {
+    console.log(`${pc.green('✓')} Removed docs index from ${pc.bold(output)}`)
+  }
+  if (skillsRemoved) {
+    console.log(`${pc.green('✓')} Removed skills index from ${pc.bold(output)}`)
+  }
+  console.log(pc.gray(`  (${formatSize(sizeBefore)} → ${formatSize(sizeAfter)})`))
+  console.log('')
+}
+
+program
+  .command('remove')
+  .description('Remove embedded indices from AGENTS.md/CLAUDE.md')
+  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('--docs', 'Remove only docs index')
+  .option('--skills', 'Remove only skills index')
+  .action(runRemove)
 
 // Skills subcommands
 const skillsCommand = program

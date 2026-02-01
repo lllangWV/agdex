@@ -3,6 +3,7 @@ import {
   buildDocTree,
   injectIndex,
   hasExistingIndex,
+  removeDocsIndex,
   generateIndex,
   collectDocFiles,
   getGlobalCacheDir,
@@ -84,6 +85,70 @@ Some content after.`
     it('returns false when no markers', () => {
       const content = '# Project\n\nNo index here.'
       expect(hasExistingIndex(content)).toBe(false)
+    })
+  })
+
+  describe('removeDocsIndex', () => {
+    it('removes index from content', () => {
+      const content = `# Project\n\n${START_MARKER}\nindex content\n${END_MARKER}\n\nFooter`
+      const result = removeDocsIndex(content)
+
+      expect(result).toContain('# Project')
+      expect(result).toContain('Footer')
+      expect(result).not.toContain(START_MARKER)
+      expect(result).not.toContain(END_MARKER)
+      expect(result).not.toContain('index content')
+    })
+
+    it('returns unchanged content when no index exists', () => {
+      const content = '# Project\n\nNo index here.\n'
+      const result = removeDocsIndex(content)
+      expect(result).toBe(content)
+    })
+
+    it('cleans up extra newlines after removal', () => {
+      const content = `# Project\n\n\n${START_MARKER}\nindex\n${END_MARKER}\n\n\nFooter`
+      const result = removeDocsIndex(content)
+
+      // Should not have more than 2 consecutive newlines
+      expect(result).not.toMatch(/\n{3,}/)
+    })
+
+    it('preserves content before and after index', () => {
+      const before = '# Header\n\nIntro paragraph.'
+      const after = '## Footer\n\nMore content.'
+      const content = `${before}\n\n${START_MARKER}\nindex\n${END_MARKER}\n\n${after}`
+
+      const result = removeDocsIndex(content)
+
+      expect(result).toContain('# Header')
+      expect(result).toContain('Intro paragraph.')
+      expect(result).toContain('## Footer')
+      expect(result).toContain('More content.')
+    })
+
+    it('handles index at start of file', () => {
+      const content = `${START_MARKER}\nindex\n${END_MARKER}\n\nContent after`
+      const result = removeDocsIndex(content)
+
+      expect(result).toContain('Content after')
+      expect(result).not.toContain(START_MARKER)
+    })
+
+    it('handles index at end of file', () => {
+      const content = `Content before\n\n${START_MARKER}\nindex\n${END_MARKER}`
+      const result = removeDocsIndex(content)
+
+      expect(result).toContain('Content before')
+      expect(result).not.toContain(START_MARKER)
+      expect(result.endsWith('\n')).toBe(true)
+    })
+
+    it('handles file with only index', () => {
+      const content = `${START_MARKER}\nindex\n${END_MARKER}`
+      const result = removeDocsIndex(content)
+
+      expect(result).toBe('')
     })
   })
 

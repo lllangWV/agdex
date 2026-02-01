@@ -7,6 +7,7 @@ import {
   generateSkillsIndex,
   injectSkillsIndex,
   hasExistingSkillsIndex,
+  removeSkillsIndex,
   getDefaultSkillSources,
 } from '../skills'
 import fs from 'fs'
@@ -403,6 +404,53 @@ Footer`
     it('returns false when no markers', () => {
       const content = '# Project\n\nNo skills index.'
       expect(hasExistingSkillsIndex(content)).toBe(false)
+    })
+  })
+
+  describe('removeSkillsIndex', () => {
+    it('removes skills index from content', () => {
+      const content = `# Project\n\n${SKILLS_START_MARKER}\nskills content\n${SKILLS_END_MARKER}\n\nFooter`
+      const result = removeSkillsIndex(content)
+
+      expect(result).toContain('# Project')
+      expect(result).toContain('Footer')
+      expect(result).not.toContain(SKILLS_START_MARKER)
+      expect(result).not.toContain(SKILLS_END_MARKER)
+      expect(result).not.toContain('skills content')
+    })
+
+    it('returns unchanged content when no index exists', () => {
+      const content = '# Project\n\nNo skills index here.\n'
+      const result = removeSkillsIndex(content)
+      expect(result).toBe(content)
+    })
+
+    it('cleans up extra newlines after removal', () => {
+      const content = `# Project\n\n\n${SKILLS_START_MARKER}\nindex\n${SKILLS_END_MARKER}\n\n\nFooter`
+      const result = removeSkillsIndex(content)
+
+      // Should not have more than 2 consecutive newlines
+      expect(result).not.toMatch(/\n{3,}/)
+    })
+
+    it('preserves content before and after index', () => {
+      const before = '# Header\n\nIntro.'
+      const after = '## Footer\n\nMore.'
+      const content = `${before}\n\n${SKILLS_START_MARKER}\nskills\n${SKILLS_END_MARKER}\n\n${after}`
+
+      const result = removeSkillsIndex(content)
+
+      expect(result).toContain('# Header')
+      expect(result).toContain('Intro.')
+      expect(result).toContain('## Footer')
+      expect(result).toContain('More.')
+    })
+
+    it('handles file with only skills index', () => {
+      const content = `${SKILLS_START_MARKER}\nskills\n${SKILLS_END_MARKER}`
+      const result = removeSkillsIndex(content)
+
+      expect(result).toBe('')
     })
   })
 

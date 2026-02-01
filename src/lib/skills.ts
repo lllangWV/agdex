@@ -256,6 +256,33 @@ export function hasExistingSkillsIndex(content: string): boolean {
 }
 
 /**
+ * Remove the skills index from content
+ * Returns the content with the index removed, or unchanged if no index exists
+ */
+export function removeSkillsIndex(content: string): string {
+  if (!hasExistingSkillsIndex(content)) {
+    return content
+  }
+
+  const startIdx = content.indexOf(SKILLS_START_MARKER)
+  const endIdx = content.indexOf(SKILLS_END_MARKER) + SKILLS_END_MARKER.length
+
+  // Remove the index and clean up extra newlines
+  let result = content.slice(0, startIdx) + content.slice(endIdx)
+
+  // Clean up multiple consecutive newlines (more than 2)
+  result = result.replace(/\n{3,}/g, '\n\n')
+
+  // Trim trailing whitespace but keep one newline at end if file had content
+  result = result.trimEnd()
+  if (result.length > 0) {
+    result += '\n'
+  }
+
+  return result
+}
+
+/**
  * Inject skills index into content
  */
 export function injectSkillsIndex(existingContent: string, indexContent: string): string {
