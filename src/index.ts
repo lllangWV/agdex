@@ -79,6 +79,7 @@ export {
   hasExistingSkillsIndex,
   removeSkillsIndex,
   getDefaultSkillSources,
+  getEnabledPluginSources,
 } from './lib/skills'
 
 // Types

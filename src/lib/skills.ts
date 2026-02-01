@@ -22,6 +22,104 @@ const SKILLS_START_MARKER = '<!-- AGENTS-MD-SKILLS-START -->'
 const SKILLS_END_MARKER = '<!-- AGENTS-MD-SKILLS-END -->'
 
 /**
+ * Parse enabled plugins from settings.json
+ * Returns array of { skillName, pluginRepo } for each enabled plugin
+ */
+function parseEnabledPlugins(settingsPath: string): Array<{ skillName: string; pluginRepo: string }> {
+  if (!fs.existsSync(settingsPath)) return []
+
+  try {
+    const content = fs.readFileSync(settingsPath, 'utf-8')
+    const settings = JSON.parse(content)
+    const enabledPlugins = settings.enabledPlugins || {}
+
+    const plugins: Array<{ skillName: string; pluginRepo: string }> = []
+
+    for (const [key, enabled] of Object.entries(enabledPlugins)) {
+      if (!enabled) continue
+
+      // Parse "skill-name@plugin-repo" format
+      const match = key.match(/^(.+)@(.+)$/)
+      if (match) {
+        plugins.push({
+          skillName: match[1],
+          pluginRepo: match[2],
+        })
+      }
+    }
+
+    return plugins
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Find the skills directory for a cached plugin
+ * Path structure: ~/.claude/plugins/cache/{pluginRepo}/{skillName}/{hash}/skills
+ */
+function findPluginSkillsPath(pluginRepo: string, skillName: string): string | null {
+  const cacheDir = path.join(os.homedir(), '.claude', 'plugins', 'cache', pluginRepo, skillName)
+
+  if (!fs.existsSync(cacheDir)) return null
+
+  try {
+    // Find hash directories (should typically be one)
+    const entries = fs.readdirSync(cacheDir, { withFileTypes: true })
+    const hashDirs = entries.filter(e => e.isDirectory() && !e.name.startsWith('.'))
+
+    if (hashDirs.length === 0) return null
+
+    // Use the first hash directory (or could sort by mtime for most recent)
+    const hashDir = hashDirs[0].name
+    const skillsPath = path.join(cacheDir, hashDir, 'skills')
+
+    if (fs.existsSync(skillsPath)) {
+      return skillsPath
+    }
+
+    return null
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Get all enabled plugins from settings.json files (user and project level)
+ */
+export function getEnabledPluginSources(cwd: string): SkillSourceConfig[] {
+  const sources: SkillSourceConfig[] = []
+  const seenPlugins = new Set<string>()
+
+  // Check both user and project settings
+  const settingsPaths = [
+    path.join(os.homedir(), '.claude', 'settings.json'),  // User level
+    path.join(cwd, '.claude', 'settings.json'),           // Project level
+  ]
+
+  for (const settingsPath of settingsPaths) {
+    const plugins = parseEnabledPlugins(settingsPath)
+
+    for (const { skillName, pluginRepo } of plugins) {
+      const key = `${skillName}@${pluginRepo}`
+      if (seenPlugins.has(key)) continue
+      seenPlugins.add(key)
+
+      const skillsPath = findPluginSkillsPath(pluginRepo, skillName)
+      if (skillsPath) {
+        sources.push({
+          type: 'plugin',
+          path: skillsPath,
+          label: `${skillName}@${pluginRepo}`,
+        })
+      }
+    }
+  }
+
+  return sources
+}
+
+/**
  * Parse YAML frontmatter from a SKILL.md file
  */
 export function parseSkillFrontmatter(content: string): SkillFrontmatter | null {
@@ -190,7 +288,23 @@ export function collectAllSkills(sources: SkillSourceConfig[]): SkillEntry[] {
 
   for (const source of sources) {
     if (source.type === 'plugin') {
-      allSkills.push(...discoverPluginSkills(source.path, source.label))
+      // Check if this is a plugin cache path (from enabled plugins in settings.json)
+      // These have a flat structure: {path}/{skillName}/SKILL.md
+      // vs plugin repo structure: {path}/plugins/{pluginName}/skills/{skillName}/SKILL.md
+      const isCachePath = source.path.includes('/plugins/cache/')
+
+      if (isCachePath) {
+        // Enabled plugins from cache - use flat discovery with plugin source
+        const skills = discoverFlatSkills(source.path, 'plugin', source.label)
+        // Add the plugin name from the label
+        for (const skill of skills) {
+          skill.pluginName = source.label
+        }
+        allSkills.push(...skills)
+      } else {
+        // Plugin repo structure - use plugin discovery
+        allSkills.push(...discoverPluginSkills(source.path, source.label))
+      }
     } else {
       allSkills.push(...discoverFlatSkills(source.path, source.type, source.label))
     }
@@ -332,22 +446,30 @@ export function injectSkillsIndex(existingContent: string, indexContent: string)
 export function getDefaultSkillSources(cwd: string, options: {
   includeUser?: boolean
   includeProject?: boolean
+  includeEnabledPlugins?: boolean
   pluginPaths?: string[]
 } = {}): SkillSourceConfig[] {
   const sources: SkillSourceConfig[] = []
   const {
     includeUser = true,
     includeProject = true,
+    includeEnabledPlugins = true,
     pluginPaths = [],
   } = options
 
-  // Add plugin sources
+  // Add manually specified plugin sources
   for (const pluginPath of pluginPaths) {
     sources.push({
       type: 'plugin',
       path: pluginPath,
       label: path.basename(pluginPath),
     })
+  }
+
+  // Add enabled plugins from settings.json
+  if (includeEnabledPlugins) {
+    const enabledPluginSources = getEnabledPluginSources(cwd)
+    sources.push(...enabledPluginSources)
   }
 
   // Add user skills

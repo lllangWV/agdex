@@ -920,6 +920,7 @@ interface SkillsEmbedCommandOptions {
   plugin?: string[]
   user?: boolean
   project?: boolean
+  plugins?: boolean
 }
 
 async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void> {
@@ -930,11 +931,12 @@ async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void>
   const sources = getDefaultSkillSources(cwd, {
     includeUser: options.user !== false,
     includeProject: options.project !== false,
+    includeEnabledPlugins: options.plugins !== false,
     pluginPaths: options.plugin || [],
   })
 
   if (sources.length === 0) {
-    console.error(pc.red('No skill sources configured. Use --plugin, --user, or --project flags.'))
+    console.error(pc.red('No skill sources configured. Use --plugin, --user, --project, or --plugins flags.'))
     process.exit(1)
   }
 
@@ -977,6 +979,7 @@ interface SkillsListCommandOptions {
   plugin?: string[]
   user?: boolean
   project?: boolean
+  plugins?: boolean
 }
 
 function runSkillsList(options: SkillsListCommandOptions): void {
@@ -986,6 +989,7 @@ function runSkillsList(options: SkillsListCommandOptions): void {
   const sources = getDefaultSkillSources(cwd, {
     includeUser: options.user !== false,
     includeProject: options.project !== false,
+    includeEnabledPlugins: options.plugins !== false,
     pluginPaths: options.plugin || [],
   })
 
@@ -1070,7 +1074,9 @@ skillsCommand
   .command('embed')
   .description('Embed skills index into AGENTS.md')
   .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
-  .option('--plugin <path...>', 'Plugin repo paths (with plugins/ structure)')
+  .option('--plugin <path...>', 'Additional plugin repo paths (with plugins/ structure)')
+  .option('--plugins', 'Include enabled plugins from settings.json (default: true)')
+  .option('--no-plugins', 'Exclude enabled plugins from settings.json')
   .option('--user', 'Include ~/.claude/skills (default: true)')
   .option('--no-user', 'Exclude ~/.claude/skills')
   .option('--project', 'Include .claude/skills (default: true)')
@@ -1080,7 +1086,9 @@ skillsCommand
 skillsCommand
   .command('list')
   .description('List discovered skills')
-  .option('--plugin <path...>', 'Plugin repo paths (with plugins/ structure)')
+  .option('--plugin <path...>', 'Additional plugin repo paths (with plugins/ structure)')
+  .option('--plugins', 'Include enabled plugins from settings.json (default: true)')
+  .option('--no-plugins', 'Exclude enabled plugins from settings.json')
   .option('--user', 'Include ~/.claude/skills (default: true)')
   .option('--no-user', 'Exclude ~/.claude/skills')
   .option('--project', 'Include .claude/skills (default: true)')

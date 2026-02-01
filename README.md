@@ -98,10 +98,10 @@ npx agdex local ./docs --name "My Framework" --output AGENTS.md
 
 ### Skills Indexing
 
-Index Claude Code skills from your `.claude` directories:
+Index Claude Code skills from your `.claude` directories and enabled plugins:
 
 ```bash
-# Index skills (auto-detects from both user and project directories)
+# Index skills (auto-detects from all sources)
 npx agdex skills embed
 
 # List discovered skills
@@ -111,12 +111,15 @@ npx agdex skills list
 npx agdex skills local ./my-skills --name "My Skills"
 ```
 
-**Auto-detection locations:**
-- `~/.claude/skills` - User-level skills (shared across projects)
-- `.claude/skills` - Project-level skills (project-specific)
+**Auto-detection sources:**
+- **Enabled plugins** - Reads `~/.claude/settings.json` and `.claude/settings.json` to find enabled plugins, then indexes their skills from the plugin cache
+- **User skills** - `~/.claude/skills` (shared across projects)
+- **Project skills** - `.claude/skills` (project-specific)
 
 **Options:**
 ```bash
+--plugins       Include enabled plugins from settings.json (default: true)
+--no-plugins    Exclude enabled plugins
 --user          Include ~/.claude/skills (default: true)
 --no-user       Exclude ~/.claude/skills
 --project       Include .claude/skills (default: true)
