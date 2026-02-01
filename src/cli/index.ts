@@ -415,7 +415,7 @@ function runList(): void {
 program
   .name('agdex')
   .description('Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents')
-  .version('0.1.0')
+  .version('0.2.0')
 
 program
   .command('embed', { isDefault: true })
