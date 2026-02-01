@@ -278,7 +278,7 @@ export function buildDocTree(files: DocFile[]): DocSection[] {
  * Generate a compressed index for AGENTS.md/CLAUDE.md
  */
 export function generateIndex(options: IndexOptions): string {
-  const { docsPath, sections, outputFile, providerName, instruction, regenerateCommand } = options
+  const { docsPath, sections, outputFile, providerName, instruction, description, regenerateCommand } = options
 
   const parts: string[] = []
 
@@ -290,6 +290,11 @@ export function generateIndex(options: IndexOptions): string {
   // Custom instruction
   if (instruction) {
     parts.push(instruction)
+  }
+
+  // Additional user-provided description
+  if (description) {
+    parts.push(description)
   }
 
   // Regeneration command
@@ -496,6 +501,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     output = 'AGENTS.md',
     docsDir: customDocsDir,
     globalCache = false,
+    description,
   } = options
 
   // Determine the docs directory
@@ -566,6 +572,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     outputFile: output,
     providerName: provider.displayName,
     instruction: provider.instruction,
+    description,
     regenerateCommand,
   })
 

@@ -83,6 +83,9 @@ export interface IndexOptions {
   /** Custom instruction to include */
   instruction?: string
 
+  /** Additional user-provided description */
+  description?: string
+
   /** Command to regenerate the docs */
   regenerateCommand?: string
 }
@@ -105,6 +108,9 @@ export interface EmbedOptions {
 
   /** Use global cache directory (~/.cache/agdex/) instead of local */
   globalCache?: boolean
+
+  /** Additional user-provided description to include in the index */
+  description?: string
 }
 
 export interface EmbedResult {

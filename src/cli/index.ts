@@ -61,6 +61,7 @@ interface EmbedCommandOptions {
   repo?: string
   docsPath?: string
   global?: boolean
+  description?: string
 }
 
 async function runEmbed(options: EmbedCommandOptions): Promise<void> {
@@ -101,7 +102,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
       provider = result.provider
       version = result.version
       output = result.output
-      await executeEmbed(cwd, provider, version, output, options.global)
+      await executeEmbed(cwd, provider, version, output, options.global, result.description)
       return
     }
   } else {
@@ -110,7 +111,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     provider = result.provider
     version = result.version
     output = result.output
-    await executeEmbed(cwd, provider, version, output, options.global)
+    await executeEmbed(cwd, provider, version, output, options.global, result.description)
     return
   }
 
@@ -127,7 +128,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     process.exit(1)
   }
 
-  await executeEmbed(cwd, provider, version, output, options.global)
+  await executeEmbed(cwd, provider, version, output, options.global, options.description)
 }
 
 async function executeEmbed(
@@ -135,7 +136,8 @@ async function executeEmbed(
   provider: DocProvider,
   version: string | undefined,
   output: string,
-  globalCache?: boolean
+  globalCache?: boolean,
+  description?: string
 ): Promise<void> {
   // Detect version if needed
   let resolvedVersion = version
@@ -163,6 +165,7 @@ async function executeEmbed(
     version: resolvedVersion,
     output,
     globalCache,
+    description,
   })
 
   if (!result.success) {
@@ -314,7 +317,7 @@ async function detectRepoContent(repo: string, branch?: string): Promise<{
 
 async function promptForOptions(
   cwd: string
-): Promise<{ provider: DocProvider; version: string; output: string }> {
+): Promise<{ provider: DocProvider; version: string; output: string; description?: string }> {
   // Try auto-detection first
   const detected = autoDetectProvider(cwd)
 
@@ -370,10 +373,12 @@ async function promptForOptions(
   // Handle detected provider shortcut
   if (actionResponse.action === 'detected' && detected) {
     const output = await promptForOutputFile()
+    const description = await promptForDescription()
     return {
       provider: detected.provider,
       version: detected.version!,
       output,
+      description,
     }
   }
 
@@ -466,11 +471,13 @@ async function promptForOptions(
   )
 
   const output = await promptForOutputFile()
+  const description = await promptForDescription()
 
   return {
     provider,
     version: versionResponse.version,
     output,
+    description,
   }
 }
 
@@ -507,9 +514,23 @@ async function promptForOutputFile(): Promise<string> {
   return response.output
 }
 
+async function promptForDescription(): Promise<string | undefined> {
+  const response = await prompts(
+    {
+      type: 'text',
+      name: 'description',
+      message: 'Additional description (optional, press Enter to skip)',
+      initial: '',
+    },
+    { onCancel }
+  )
+
+  return response.description?.trim() || undefined
+}
+
 async function promptForGitHubRepo(
   cwd: string
-): Promise<{ provider: DocProvider; version: string; output: string }> {
+): Promise<{ provider: DocProvider; version: string; output: string; description?: string }> {
   console.log('')
   console.log(pc.gray('  Enter a GitHub URL or owner/repo. Examples:'))
   console.log(pc.gray('    • anthropics/skills'))
@@ -563,6 +584,7 @@ async function promptForGitHubRepo(
     )
 
     const output = await promptForOutputFile()
+    const description = await promptForDescription()
 
     const provider = createProvider({
       name: nameResponse.name.toLowerCase().replace(/\s+/g, '-'),
@@ -571,7 +593,7 @@ async function promptForGitHubRepo(
       docsPath: parsed.path,
     })
 
-    return { provider, version: versionResponse.version, output }
+    return { provider, version: versionResponse.version, output, description }
   }
 
   // Show what was detected
@@ -678,6 +700,7 @@ async function promptForGitHubRepo(
   )
 
   const output = await promptForOutputFile()
+  const description = await promptForDescription()
 
   const provider = createProvider({
     name: nameResponse.name.toLowerCase().replace(/\s+/g, '-'),
@@ -686,7 +709,7 @@ async function promptForGitHubRepo(
     docsPath,
   })
 
-  return { provider, version: versionResponse.version, output }
+  return { provider, version: versionResponse.version, output, description }
 }
 
 // Local docs command - embed docs from a local directory
@@ -806,6 +829,7 @@ program
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
   .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
+  .option('-d, --description <text>', 'Additional description to include in the index')
   .action(runEmbed)
 
 program
