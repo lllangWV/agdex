@@ -8,6 +8,7 @@ export { rattlerBuildProvider } from './rattler-build'
 export { tauriProvider } from './tauri'
 export { condaForgeProvider } from './conda-forge'
 export { bunProvider } from './bun'
+export { svelteProvider } from './svelte'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
@@ -18,6 +19,7 @@ import { rattlerBuildProvider } from './rattler-build'
 import { tauriProvider } from './tauri'
 import { condaForgeProvider } from './conda-forge'
 import { bunProvider } from './bun'
+import { svelteProvider } from './svelte'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -39,9 +41,10 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return condaForgeProvider
     case 'bun':
       return bunProvider
+    case 'svelte':
+      return svelteProvider
     // Add more providers as needed
     case 'vue':
-    case 'svelte':
     case 'astro':
       // These can be added later with proper detection
       return null
