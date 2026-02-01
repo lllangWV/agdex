@@ -1,5 +1,5 @@
 /**
- * Core types for agentsmd-embed
+ * Core types for agdex
  */
 
 export interface DocFile {
@@ -103,7 +103,7 @@ export interface EmbedOptions {
   /** Directory name for downloaded docs */
   docsDir?: string
 
-  /** Use global cache directory (~/.cache/agentsmd-embd/) instead of local */
+  /** Use global cache directory (~/.cache/agdex/) instead of local */
   globalCache?: boolean
 }
 

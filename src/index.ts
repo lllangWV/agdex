@@ -1,5 +1,5 @@
 /**
- * agentsmd-embed - Embed compressed documentation indexes into AGENTS.md/CLAUDE.md
+ * agdex - Embed compressed documentation indexes into AGENTS.md/CLAUDE.md
  *
  * This package helps AI coding agents (Claude, Cursor, etc.) work with
  * version-matched framework documentation by embedding a compressed
@@ -7,7 +7,7 @@
  *
  * @example
  * ```ts
- * import { embed, nextjsProvider } from 'agentsmd-embed'
+ * import { embed, nextjsProvider } from 'agdex'
  *
  * // Embed Next.js docs
  * const result = await embed({
@@ -17,7 +17,7 @@
  * })
  *
  * // Or create a custom provider
- * import { createProvider, embed } from 'agentsmd-embed'
+ * import { createProvider, embed } from 'agdex'
  *
  * const myProvider = createProvider({
  *   name: 'my-framework',

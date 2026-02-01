@@ -1,5 +1,5 @@
 /**
- * agents-md: Generate documentation index for AI coding agents.
+ * agdex: Generate documentation index for AI coding agents.
  *
  * Downloads docs from GitHub via git sparse-checkout, builds a compact
  * index of all doc files, and injects it into CLAUDE.md or AGENTS.md.
@@ -51,7 +51,7 @@ export async function pullDocs(
     }
   }
 
-  const docsPath = docsDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'agentsmd-embed-'))
+  const docsPath = docsDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'agdex-'))
   const useTempDir = !docsDir
 
   try {
@@ -88,7 +88,7 @@ async function cloneDocsFolder(
   tag: string,
   destDir: string
 ): Promise<void> {
-  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agentsmd-embed-clone-'))
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agdex-clone-'))
 
   try {
     try {
@@ -281,7 +281,7 @@ export function generateIndex(options: IndexOptions): string {
 
   // Regeneration command
   const targetFile = outputFile || 'AGENTS.md'
-  const cmd = regenerateCommand || `npx agentsmd-embed --output ${targetFile}`
+  const cmd = regenerateCommand || `npx agdex --output ${targetFile}`
   parts.push(`If docs missing, run: ${cmd}`)
 
   // Collect all files and group by directory
@@ -409,7 +409,7 @@ export function ensureGitignoreEntry(cwd: string, docsDir: string): GitignoreSta
   }
 
   const needsNewline = content.length > 0 && !content.endsWith('\n')
-  const header = content.includes('# agentsmd-embed') ? '' : '# agentsmd-embed\n'
+  const header = content.includes('# agdex') ? '' : '# agdex\n'
   const newContent = content + (needsNewline ? '\n' : '') + header + `${entry}\n`
 
   fs.writeFileSync(gitignorePath, newContent, 'utf-8')
@@ -421,14 +421,14 @@ export function ensureGitignoreEntry(cwd: string, docsDir: string): GitignoreSta
  * Get the global cache directory path
  */
 export function getGlobalCacheDir(): string {
-  return path.join(os.homedir(), '.cache', 'agentsmd-embd')
+  return path.join(os.homedir(), '.cache', 'agdex')
 }
 
 /**
  * Get the local cache directory path
  */
 export function getLocalCacheDir(cwd: string): string {
-  return path.join(cwd, '.agentsmd-embd')
+  return path.join(cwd, '.agdex')
 }
 
 /**
@@ -455,14 +455,14 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     docsPath = path.isAbsolute(customDocsDir) ? customDocsDir : path.join(cwd, customDocsDir)
     docsLinkPath = path.isAbsolute(customDocsDir) ? customDocsDir : `./${customDocsDir}`
   } else if (globalCache) {
-    // Global cache: ~/.cache/agentsmd-embd/{provider}
+    // Global cache: ~/.cache/agdex/{provider}
     const cacheBase = getGlobalCacheDir()
     docsDir = path.join(cacheBase, provider.name)
     docsPath = docsDir
     docsLinkPath = docsPath // Use absolute path for global cache
   } else {
-    // Local cache: .agentsmd-embd/{provider}
-    docsDir = `.agentsmd-embd/${provider.name}`
+    // Local cache: .agdex/{provider}
+    docsDir = `.agdex/${provider.name}`
     docsPath = path.join(cwd, docsDir)
     docsLinkPath = `./${docsDir}`
   }
@@ -504,7 +504,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
 
   // Build regenerate command
   const globalFlag = globalCache ? ' --global' : ''
-  const regenerateCommand = `npx agentsmd-embed --provider ${provider.name} --output ${output}${globalFlag}`
+  const regenerateCommand = `npx agdex --provider ${provider.name} --output ${output}${globalFlag}`
 
   const indexContent = generateIndex({
     docsPath: docsLinkPath,
@@ -524,7 +524,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
   // Update .gitignore (only for local cache, not global)
   let gitignoreUpdated = false
   if (!globalCache && !customDocsDir) {
-    const gitignoreResult = ensureGitignoreEntry(cwd, '.agentsmd-embd')
+    const gitignoreResult = ensureGitignoreEntry(cwd, '.agdex')
     gitignoreUpdated = gitignoreResult.updated
   } else if (!globalCache && customDocsDir && !path.isAbsolute(customDocsDir)) {
     const gitignoreResult = ensureGitignoreEntry(cwd, customDocsDir)

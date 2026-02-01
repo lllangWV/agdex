@@ -1,5 +1,5 @@
 {
-  "name": "agentsmd-embed",
+  "name": "agdex",
   "version": "0.1.0",
   "description": "Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents",
   "module": "dist/index.js",
@@ -7,7 +7,7 @@
   "types": "dist/index.d.ts",
   "type": "module",
   "bin": {
-    "agentsmd-embed": "./dist/cli/index.js"
+    "agdex": "./dist/cli/index.js"
   },
   "exports": {
     ".": {
@@ -44,11 +44,11 @@
     "ai",
     "documentation",
     "coding-agents",
-    "agentsmd"
+    "agdex"
   ],
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/agentsmd-embed"
+    "url": "https://github.com/yourusername/agdex"
   }
 }

@@ -1,4 +1,4 @@
-# agentsmd-embed
+# agdex
 
 Embed compressed documentation indexes into `AGENTS.md` or `CLAUDE.md` for AI coding agents.
 
@@ -19,13 +19,13 @@ The key instruction embedded tells agents to **prefer retrieval-led reasoning ov
 
 ```bash
 # Using bun
-bun add -D agentsmd-embed
+bun add -D agdex
 
 # Using npm
-npm install -D agentsmd-embed
+npm install -D agdex
 
 # Or run directly with npx
-npx agentsmd-embed
+npx agdex
 ```
 
 ## CLI Usage
@@ -33,7 +33,7 @@ npx agentsmd-embed
 ### Interactive Mode
 
 ```bash
-npx agentsmd-embed
+npx agdex
 ```
 
 Prompts you to select a provider, version, and output file.
@@ -42,25 +42,28 @@ Prompts you to select a provider, version, and output file.
 
 ```bash
 # Next.js (auto-detects version from package.json)
-npx agentsmd-embed --provider nextjs --output AGENTS.md
+npx agdex --provider nextjs --output AGENTS.md
 
 # With explicit version
-npx agentsmd-embed --provider nextjs --fw-version 15.1.0 --output CLAUDE.md
+npx agdex --provider nextjs --fw-version 15.1.0 --output CLAUDE.md
 
 # React
-npx agentsmd-embed --provider react --fw-version 18.2.0 --output AGENTS.md
+npx agdex --provider react --fw-version 18.2.0 --output AGENTS.md
 
 # Pixi (auto-detects from pixi.toml or installed version)
-npx agentsmd-embed --provider pixi --output AGENTS.md
+npx agdex --provider pixi --output AGENTS.md
 
 # Pixi with explicit version
-npx agentsmd-embed --provider pixi --fw-version 0.63.2 --output AGENTS.md
+npx agdex --provider pixi --fw-version 0.63.2 --output AGENTS.md
+
+# Bun (auto-detects from bun.lockb or bunfig.toml)
+npx agdex --provider bun --output AGENTS.md
 ```
 
 ### Custom GitHub Repository
 
 ```bash
-npx agentsmd-embed --repo owner/repo --docs-path docs --fw-version v1.0.0 --output AGENTS.md
+npx agdex --repo owner/repo --docs-path docs --fw-version v1.0.0 --output AGENTS.md
 ```
 
 ### Local Documentation
@@ -68,19 +71,19 @@ npx agentsmd-embed --repo owner/repo --docs-path docs --fw-version v1.0.0 --outp
 Build an index from an existing local docs directory:
 
 ```bash
-npx agentsmd-embed local ./docs --name "My Framework" --output AGENTS.md
+npx agdex local ./docs --name "My Framework" --output AGENTS.md
 ```
 
 ### List Available Providers
 
 ```bash
-npx agentsmd-embed list
+npx agdex list
 ```
 
 ## Programmatic API
 
 ```typescript
-import { embed, nextjsProvider, createProvider } from 'agentsmd-embed'
+import { embed, nextjsProvider, createProvider } from 'agdex'
 
 // Use built-in provider
 const result = await embed({
@@ -114,7 +117,7 @@ import {
   buildDocTree,
   generateIndex,
   injectIndex
-} from 'agentsmd-embed'
+} from 'agdex'
 
 // Collect doc files
 const files = collectDocFiles('./docs', {
@@ -160,6 +163,7 @@ This format:
 | rattler-build  | ✓      | prefix-dev/rattler-build |
 | Tauri          | ✓      | tauri-apps/tauri-docs |
 | conda-forge    | ✓      | conda-forge/conda-forge.github.io |
+| Bun            | ✓      | oven-sh/bun |
 | Vue            | ○      | Coming soon |
 | Svelte         | ○      | Coming soon |
 | Astro          | ○      | Coming soon |

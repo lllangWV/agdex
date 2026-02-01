@@ -323,22 +323,22 @@ Some content after.`
   })
 
   describe('getGlobalCacheDir', () => {
-    it('returns path under ~/.cache/agentsmd-embd', () => {
+    it('returns path under ~/.cache/agdex', () => {
       const result = getGlobalCacheDir()
-      expect(result).toBe(path.join(os.homedir(), '.cache', 'agentsmd-embd'))
+      expect(result).toBe(path.join(os.homedir(), '.cache', 'agdex'))
     })
   })
 
   describe('getLocalCacheDir', () => {
-    it('returns path under cwd/.agentsmd-embd', () => {
+    it('returns path under cwd/.agdex', () => {
       const cwd = '/some/project'
       const result = getLocalCacheDir(cwd)
-      expect(result).toBe(path.join(cwd, '.agentsmd-embd'))
+      expect(result).toBe(path.join(cwd, '.agdex'))
     })
 
     it('works with different cwd values', () => {
-      expect(getLocalCacheDir('/a')).toBe('/a/.agentsmd-embd')
-      expect(getLocalCacheDir('/home/user/project')).toBe('/home/user/project/.agentsmd-embd')
+      expect(getLocalCacheDir('/a')).toBe('/a/.agdex')
+      expect(getLocalCacheDir('/home/user/project')).toBe('/home/user/project/.agdex')
     })
   })
 })

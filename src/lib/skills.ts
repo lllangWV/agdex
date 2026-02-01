@@ -222,7 +222,7 @@ export function generateSkillsIndex(
   }
 
   // Add regeneration command
-  const cmd = options.regenerateCommand || 'npx agentsmd-embed skills embed'
+  const cmd = options.regenerateCommand || 'npx agdex skills embed'
   parts.push(`Regen: ${cmd}`)
 
   return parts.join('|')
@@ -390,7 +390,7 @@ export async function embedSkills(options: SkillsEmbedOptions): Promise<SkillsEm
 
   // Generate index
   const indexContent = generateSkillsIndex(skills, {
-    regenerateCommand: `npx agentsmd-embed skills embed`,
+    regenerateCommand: `npx agdex skills embed`,
   })
 
   // Inject into target file

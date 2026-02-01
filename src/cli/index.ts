@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * CLI for agentsmd-embed
+ * CLI for agdex
  */
 import { Command } from 'commander'
 import prompts from 'prompts'
@@ -150,8 +150,8 @@ async function executeEmbed(
 
   // Determine display path for the message
   const displayPath = globalCache
-    ? `~/.cache/agentsmd-embd/${provider.name}`
-    : `.agentsmd-embd/${provider.name}`
+    ? `~/.cache/agdex/${provider.name}`
+    : `.agdex/${provider.name}`
 
   console.log(
     `\nDownloading ${pc.cyan(provider.displayName)} ${pc.cyan(resolvedVersion!)} documentation to ${pc.cyan(displayPath)}...`
@@ -178,7 +178,7 @@ async function executeEmbed(
   console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} (${sizeInfo})`)
 
   if (result.gitignoreUpdated) {
-    console.log(`${pc.green('✓')} Added ${pc.bold('.agentsmd-embd')} to .gitignore`)
+    console.log(`${pc.green('✓')} Added ${pc.bold('.agdex')} to .gitignore`)
   }
 
   console.log('')
@@ -208,7 +208,7 @@ async function promptForOptions(
   // Try auto-detection first
   const detected = autoDetectProvider(cwd)
 
-  console.log(pc.cyan('\nagentsmd-embed - Documentation Index for AI Coding Agents\n'))
+  console.log(pc.cyan('\nagdex - Documentation Index for AI Coding Agents\n'))
 
   if (detected) {
     console.log(
@@ -373,7 +373,7 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
     outputFile: output,
     providerName: name,
     instruction: `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any ${name} tasks.`,
-    regenerateCommand: `npx agentsmd-embed local ${docsPath} --name "${name}" --output ${output}`,
+    regenerateCommand: `npx agdex local ${docsPath} --name "${name}" --output ${output}`,
   })
 
   const newContent = injectIndex(existingContent, indexContent)
@@ -411,7 +411,7 @@ function runList(): void {
 
 // Setup CLI commands
 program
-  .name('agentsmd-embed')
+  .name('agdex')
   .description('Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents')
   .version('0.1.0')
 
@@ -423,7 +423,7 @@ program
   .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
-  .option('-g, --global', 'Store docs in global cache (~/.cache/agentsmd-embd/) instead of local .agentsmd-embd/')
+  .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
   .action(runEmbed)
 
 program
