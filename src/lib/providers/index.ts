@@ -11,6 +11,7 @@ export { bunProvider } from './bun'
 export { svelteProvider } from './svelte'
 export { tailwindProvider } from './tailwind'
 export { ruffProvider } from './ruff'
+export { tyProvider } from './ty'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
@@ -24,6 +25,7 @@ import { bunProvider } from './bun'
 import { svelteProvider } from './svelte'
 import { tailwindProvider } from './tailwind'
 import { ruffProvider } from './ruff'
+import { tyProvider } from './ty'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -51,6 +53,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return tailwindProvider
     case 'ruff':
       return ruffProvider
+    case 'ty':
+      return tyProvider
     // Add more providers as needed
     case 'vue':
     case 'astro':
@@ -65,7 +69,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'astro', 'tailwind', 'ruff']
+  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'astro', 'tailwind', 'ruff', 'ty']
 }
 
 /**
