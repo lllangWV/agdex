@@ -840,7 +840,7 @@ program
   .description('Embed documentation index into AGENTS.md/CLAUDE.md')
   .option('-p, --provider <name>', 'Documentation provider (nextjs, react, etc.)')
   .option('--fw-version <version>', 'Framework version (auto-detected if not provided)')
-  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
   .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
@@ -851,7 +851,7 @@ program
   .command('local <docs-path>')
   .description('Build index from local documentation directory')
   .option('-n, --name <name>', 'Display name for the documentation')
-  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('-e, --extensions <exts>', 'File extensions to include (comma-separated, default: .md,.mdx)')
   .action(runLocal)
 
@@ -919,7 +919,7 @@ function runRemove(options: RemoveCommandOptions): void {
 program
   .command('remove')
   .description('Remove embedded indices from AGENTS.md/CLAUDE.md')
-  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('--docs', 'Remove only docs index')
   .option('--skills', 'Remove only skills index')
   .option('-p, --provider <name>', 'Remove only a specific provider\'s docs index')
@@ -1088,7 +1088,7 @@ async function runSkillsLocal(skillsPath: string, options: SkillsLocalCommandOpt
 skillsCommand
   .command('embed')
   .description('Embed skills index into AGENTS.md')
-  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('--plugin <path...>', 'Additional plugin repo paths (with plugins/ structure)')
   .option('--plugins', 'Include enabled plugins from settings.json (default: true)')
   .option('--no-plugins', 'Exclude enabled plugins from settings.json')
@@ -1113,7 +1113,7 @@ skillsCommand
 skillsCommand
   .command('local <skills-path>')
   .description('Index skills from a local path')
-  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('-n, --name <name>', 'Label for this skill source')
   .action(runSkillsLocal)
 

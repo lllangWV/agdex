@@ -14,7 +14,7 @@ export interface AgdexConfig {
 }
 
 const DEFAULT_CONFIG: AgdexConfig = {
-  output: 'AGENTS.md',
+  output: 'CLAUDE.md',
 }
 
 /**

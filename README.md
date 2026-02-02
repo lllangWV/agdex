@@ -61,7 +61,7 @@ Add an `agdex` field to your `package.json`:
 
 | Option   | Type   | Default     | Description |
 |----------|--------|-------------|-------------|
-| `output` | string | `AGENTS.md` | Default output file for indexes |
+| `output` | string | `CLAUDE.md` | Default output file for indexes |
 
 ## CLI Usage
 
@@ -112,7 +112,7 @@ npx agdex --provider nextjs --description "Project uses App Router only"
 ```bash
 -p, --provider <name>     Documentation provider (nextjs, react, etc.)
 --fw-version <version>    Framework version (auto-detected if not provided)
--o, --output <file>       Target file (default: from config or AGENTS.md)
+-o, --output <file>       Target file (default: from config or CLAUDE.md)
 -d, --description <text>  Additional description to include in the index
 -g, --global              Store docs in global cache (~/.cache/agdex/)
 ```
