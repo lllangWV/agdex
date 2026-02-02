@@ -271,6 +271,7 @@ This format:
 | Convex         | ✓      | get-convex/convex-backend |
 | Polars         | ✓      | pola-rs/polars |
 | delta-rs       | ✓      | delta-io/delta-rs |
+| Obsidian       | ✓      | obsidianmd/obsidian-developer-docs |
 | Vue            | ○      | Coming soon |
 | Astro          | ○      | Coming soon |
 

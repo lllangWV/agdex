@@ -42,6 +42,7 @@ import {
   convexProvider,
   polarsProvider,
   deltaRsProvider,
+  obsidianProvider,
 } from '../lib/providers'
 import type { DocProvider, ProviderPreset } from '../lib/types'
 import { getDefaultOutput } from '../lib/config'
@@ -200,7 +201,7 @@ function autoDetectProvider(
   cwd: string
 ): { provider: DocProvider; version: string | null } | null {
   // Try each built-in provider
-  const providers: DocProvider[] = [nextjsProvider, pixiProvider, rattlerBuildProvider, tauriProvider, bunProvider, svelteProvider, tailwindProvider, ruffProvider, tyProvider, basedpyrightProvider, convexProvider, polarsProvider, deltaRsProvider]
+  const providers: DocProvider[] = [nextjsProvider, pixiProvider, rattlerBuildProvider, tauriProvider, bunProvider, svelteProvider, tailwindProvider, ruffProvider, tyProvider, basedpyrightProvider, convexProvider, polarsProvider, deltaRsProvider, obsidianProvider]
 
   for (const provider of providers) {
     if (provider.detectVersion) {
