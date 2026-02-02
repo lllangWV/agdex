@@ -274,6 +274,7 @@ This format:
 | Obsidian       | ✓      | obsidianmd/obsidian-developer-docs |
 | Obsidian Excalidraw | ✓ | zsviczian/obsidian-excalidraw-plugin |
 | FFmpeg         | ✓      | FFmpeg/FFmpeg |
+| Manim          | ✓      | ManimCommunity/manim |
 | Vue            | ○      | Coming soon |
 | Astro          | ○      | Coming soon |
 

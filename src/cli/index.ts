@@ -45,6 +45,7 @@ import {
   obsidianProvider,
   obsidianExcalidrawProvider,
   ffmpegProvider,
+  manimProvider,
 } from '../lib/providers'
 import type { DocProvider, ProviderPreset } from '../lib/types'
 import { getDefaultOutput } from '../lib/config'
@@ -203,7 +204,7 @@ function autoDetectProvider(
   cwd: string
 ): { provider: DocProvider; version: string | null } | null {
   // Try each built-in provider
-  const providers: DocProvider[] = [nextjsProvider, pixiProvider, rattlerBuildProvider, tauriProvider, bunProvider, svelteProvider, tailwindProvider, ruffProvider, tyProvider, basedpyrightProvider, convexProvider, polarsProvider, deltaRsProvider, obsidianProvider, obsidianExcalidrawProvider, ffmpegProvider]
+  const providers: DocProvider[] = [nextjsProvider, pixiProvider, rattlerBuildProvider, tauriProvider, bunProvider, svelteProvider, tailwindProvider, ruffProvider, tyProvider, basedpyrightProvider, convexProvider, polarsProvider, deltaRsProvider, obsidianProvider, obsidianExcalidrawProvider, ffmpegProvider, manimProvider]
 
   for (const provider of providers) {
     if (provider.detectVersion) {

@@ -65,7 +65,7 @@ export interface DocProvider {
 /**
  * Built-in provider presets
  */
-export type ProviderPreset = 'nextjs' | 'react' | 'pixi' | 'rattler-build' | 'tauri' | 'conda-forge' | 'bun' | 'vue' | 'svelte' | 'astro' | 'tailwind' | 'ruff' | 'ty' | 'basedpyright' | 'convex' | 'polars' | 'delta-rs' | 'obsidian' | 'obsidian-excalidraw' | 'ffmpeg'
+export type ProviderPreset = 'nextjs' | 'react' | 'pixi' | 'rattler-build' | 'tauri' | 'conda-forge' | 'bun' | 'vue' | 'svelte' | 'astro' | 'tailwind' | 'ruff' | 'ty' | 'basedpyright' | 'convex' | 'polars' | 'delta-rs' | 'obsidian' | 'obsidian-excalidraw' | 'ffmpeg' | 'manim'
 
 export interface IndexOptions {
   /** Path where docs are stored */
