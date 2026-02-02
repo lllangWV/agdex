@@ -272,6 +272,7 @@ This format:
 | Polars         | ✓      | pola-rs/polars |
 | delta-rs       | ✓      | delta-io/delta-rs |
 | Obsidian       | ✓      | obsidianmd/obsidian-developer-docs |
+| Obsidian Excalidraw | ✓ | zsviczian/obsidian-excalidraw-plugin |
 | Vue            | ○      | Coming soon |
 | Astro          | ○      | Coming soon |
 

@@ -17,6 +17,7 @@ export { convexProvider } from './convex'
 export { polarsProvider } from './polars'
 export { deltaRsProvider } from './delta-rs'
 export { obsidianProvider } from './obsidian'
+export { obsidianExcalidrawProvider } from './obsidian-excalidraw'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
@@ -36,6 +37,7 @@ import { convexProvider } from './convex'
 import { polarsProvider } from './polars'
 import { deltaRsProvider } from './delta-rs'
 import { obsidianProvider } from './obsidian'
+import { obsidianExcalidrawProvider } from './obsidian-excalidraw'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -75,6 +77,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return deltaRsProvider
     case 'obsidian':
       return obsidianProvider
+    case 'obsidian-excalidraw':
+      return obsidianExcalidrawProvider
     // Add more providers as needed
     case 'vue':
     case 'astro':
@@ -89,7 +93,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'astro', 'tailwind', 'ruff', 'ty', 'basedpyright', 'convex', 'polars', 'delta-rs', 'obsidian']
+  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'astro', 'tailwind', 'ruff', 'ty', 'basedpyright', 'convex', 'polars', 'delta-rs', 'obsidian', 'obsidian-excalidraw']
 }
 
 /**
