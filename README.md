@@ -273,6 +273,7 @@ This format:
 | delta-rs       | ✓      | delta-io/delta-rs |
 | Obsidian       | ✓      | obsidianmd/obsidian-developer-docs |
 | Obsidian Excalidraw | ✓ | zsviczian/obsidian-excalidraw-plugin |
+| FFmpeg         | ✓      | FFmpeg/FFmpeg |
 | Vue            | ○      | Coming soon |
 | Astro          | ○      | Coming soon |
 
