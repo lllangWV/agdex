@@ -837,7 +837,7 @@ Sources you can index:
   • Claude Code skills
 
 Run 'agdex' without arguments for interactive mode.`)
-  .version('0.2.0')
+  .version('0.4.2')
 
 program
   .command('embed', { isDefault: true })
