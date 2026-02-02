@@ -1,6 +1,6 @@
 {
   "name": "agdex",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents",
   "module": "dist/index.js",
   "main": "dist/index.js",
