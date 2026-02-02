@@ -44,6 +44,7 @@ import {
   deltaRsProvider,
 } from '../lib/providers'
 import type { DocProvider, ProviderPreset } from '../lib/types'
+import { getDefaultOutput } from '../lib/config'
 import fs from 'fs'
 import path from 'path'
 
@@ -124,7 +125,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
   }
 
   // Determine output file
-  output = options.output || 'AGENTS.md'
+  output = options.output || getDefaultOutput()
 
   // Version validation
   if (!version && !provider.detectVersion) {
@@ -490,17 +491,23 @@ async function promptForOptions(
 }
 
 async function promptForOutputFile(): Promise<string> {
+  const defaultOutput = getDefaultOutput()
+  const choices = [
+    { title: 'AGENTS.md', value: 'AGENTS.md' },
+    { title: 'CLAUDE.md', value: 'CLAUDE.md' },
+    { title: 'Custom...', value: '__custom__' },
+  ]
+  // Put configured default first
+  const defaultIndex = choices.findIndex((c) => c.value === defaultOutput)
+  const initial = defaultIndex >= 0 ? defaultIndex : 0
+
   const response = await prompts(
     {
       type: 'select',
       name: 'output',
       message: 'Target file',
-      choices: [
-        { title: 'AGENTS.md', value: 'AGENTS.md' },
-        { title: 'CLAUDE.md', value: 'CLAUDE.md' },
-        { title: 'Custom...', value: '__custom__' },
-      ],
-      initial: 0,
+      choices,
+      initial,
     },
     { onCancel }
   )
@@ -511,7 +518,7 @@ async function promptForOutputFile(): Promise<string> {
         type: 'text',
         name: 'file',
         message: 'Custom file path',
-        initial: 'AGENTS.md',
+        initial: defaultOutput,
         validate: (v: string) => (v.trim() ? true : 'Please enter a file path'),
       },
       { onCancel }
@@ -737,7 +744,7 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
   }
 
   const name = options.name || path.basename(docsPath)
-  const output = options.output || 'AGENTS.md'
+  const output = options.output || getDefaultOutput()
   const extensions = options.extensions?.split(',') || ['.md', '.mdx']
 
   console.log(`\nBuilding index from ${pc.cyan(docsPath)}...`)
@@ -833,7 +840,7 @@ program
   .description('Embed documentation index into AGENTS.md/CLAUDE.md')
   .option('-p, --provider <name>', 'Documentation provider (nextjs, react, etc.)')
   .option('--fw-version <version>', 'Framework version (auto-detected if not provided)')
-  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
   .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
@@ -844,7 +851,7 @@ program
   .command('local <docs-path>')
   .description('Build index from local documentation directory')
   .option('-n, --name <name>', 'Display name for the documentation')
-  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
   .option('-e, --extensions <exts>', 'File extensions to include (comma-separated, default: .md,.mdx)')
   .action(runLocal)
 
@@ -860,7 +867,7 @@ interface RemoveCommandOptions {
 
 function runRemove(options: RemoveCommandOptions): void {
   const cwd = process.cwd()
-  const output = options.output || 'AGENTS.md'
+  const output = options.output || getDefaultOutput()
   const targetPath = path.join(cwd, output)
 
   if (!fs.existsSync(targetPath)) {
@@ -912,7 +919,7 @@ function runRemove(options: RemoveCommandOptions): void {
 program
   .command('remove')
   .description('Remove embedded indices from AGENTS.md/CLAUDE.md')
-  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
   .option('--docs', 'Remove only docs index')
   .option('--skills', 'Remove only skills index')
   .option('-p, --provider <name>', 'Remove only a specific provider\'s docs index')
@@ -933,7 +940,7 @@ interface SkillsEmbedCommandOptions {
 
 async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void> {
   const cwd = process.cwd()
-  const output = options.output || 'AGENTS.md'
+  const output = options.output || getDefaultOutput()
 
   // Build source configuration
   const sources = getDefaultSkillSources(cwd, {
@@ -1047,7 +1054,7 @@ async function runSkillsLocal(skillsPath: string, options: SkillsLocalCommandOpt
     process.exit(1)
   }
 
-  const output = options.output || 'AGENTS.md'
+  const output = options.output || getDefaultOutput()
   const label = options.name || path.basename(skillsPath)
 
   // Determine if this is a plugin structure or flat structure
@@ -1081,7 +1088,7 @@ async function runSkillsLocal(skillsPath: string, options: SkillsLocalCommandOpt
 skillsCommand
   .command('embed')
   .description('Embed skills index into AGENTS.md')
-  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
   .option('--plugin <path...>', 'Additional plugin repo paths (with plugins/ structure)')
   .option('--plugins', 'Include enabled plugins from settings.json (default: true)')
   .option('--no-plugins', 'Exclude enabled plugins from settings.json')
@@ -1106,7 +1113,7 @@ skillsCommand
 skillsCommand
   .command('local <skills-path>')
   .description('Index skills from a local path')
-  .option('-o, --output <file>', 'Target file (default: AGENTS.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or AGENTS.md)')
   .option('-n, --name <name>', 'Label for this skill source')
   .action(runSkillsLocal)
 

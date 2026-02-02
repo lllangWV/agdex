@@ -28,6 +28,41 @@ npm install -D agdex
 npx agdex
 ```
 
+## Configuration
+
+You can configure agdex defaults using either `.agdexrc.json` or the `agdex` field in `package.json`.
+
+### Using .agdexrc.json
+
+Create a `.agdexrc.json` file in your project root:
+
+```json
+{
+  "output": "CLAUDE.md"
+}
+```
+
+### Using package.json
+
+Add an `agdex` field to your `package.json`:
+
+```json
+{
+  "name": "my-project",
+  "agdex": {
+    "output": "CLAUDE.md"
+  }
+}
+```
+
+**Note:** `.agdexrc.json` takes priority over `package.json` if both are present.
+
+### Configuration Options
+
+| Option   | Type   | Default     | Description |
+|----------|--------|-------------|-------------|
+| `output` | string | `AGENTS.md` | Default output file for indexes |
+
 ## CLI Usage
 
 ### Interactive Mode
@@ -77,7 +112,7 @@ npx agdex --provider nextjs --description "Project uses App Router only"
 ```bash
 -p, --provider <name>     Documentation provider (nextjs, react, etc.)
 --fw-version <version>    Framework version (auto-detected if not provided)
--o, --output <file>       Target file (default: AGENTS.md)
+-o, --output <file>       Target file (default: from config or AGENTS.md)
 -d, --description <text>  Additional description to include in the index
 -g, --global              Store docs in global cache (~/.cache/agdex/)
 ```

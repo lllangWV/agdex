@@ -82,6 +82,10 @@ export {
   getEnabledPluginSources,
 } from './lib/skills'
 
+// Config
+export { loadConfig, getDefaultOutput } from './lib/config'
+export type { AgdexConfig } from './lib/config'
+
 // Types
 export type {
   DocProvider,
