@@ -46,7 +46,15 @@ export function createProvider(options: GenericProviderOptions): DocProvider {
     docsPath,
     extensions = ['.mdx', '.md'],
     packageName,
-    versionToTag = (v) => (v.startsWith('v') ? v : `v${v}`),
+    versionToTag = (v) => {
+      // If it looks like a branch name (not a version), pass through unchanged
+      // Version patterns: starts with digit, or already has v prefix
+      if (v.startsWith('v') || /^\d/.test(v)) {
+        return v.startsWith('v') ? v : `v${v}`
+      }
+      // Otherwise treat as branch name (main, master, develop, etc.)
+      return v
+    },
     excludePatterns = ['**/index.mdx', '**/index.md'],
     instruction,
   } = options

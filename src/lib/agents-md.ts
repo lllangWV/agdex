@@ -72,7 +72,14 @@ export async function pullDocs(
       fs.rmSync(docsPath, { recursive: true })
     }
 
-    const tag = provider.versionToTag ? provider.versionToTag(version) : `v${version}`
+    // Convert version to git tag. If it looks like a branch name (doesn't start with digit or v), use as-is
+    const defaultVersionToTag = (v: string) => {
+      if (v.startsWith('v') || /^\d/.test(v)) {
+        return v.startsWith('v') ? v : `v${v}`
+      }
+      return v
+    }
+    const tag = provider.versionToTag ? provider.versionToTag(version) : defaultVersionToTag(version)
     await cloneDocsFolder(provider.repo, provider.docsPath, tag, docsPath)
 
     return {
