@@ -228,8 +228,15 @@ This format:
 | Tauri          | ✓      | tauri-apps/tauri-docs |
 | conda-forge    | ✓      | conda-forge/conda-forge.github.io |
 | Bun            | ✓      | oven-sh/bun |
+| Svelte         | ✓      | sveltejs/svelte |
+| Tailwind CSS   | ✓      | tailwindlabs/tailwindcss.com |
+| Ruff           | ✓      | astral-sh/ruff |
+| ty             | ✓      | astral-sh/ty |
+| basedpyright   | ✓      | DetachHead/basedpyright |
+| Convex         | ✓      | get-convex/convex-backend |
+| Polars         | ✓      | pola-rs/polars |
+| delta-rs       | ✓      | delta-io/delta-rs |
 | Vue            | ○      | Coming soon |
-| Svelte         | ○      | Coming soon |
 | Astro          | ○      | Coming soon |
 
 ## How It Works
