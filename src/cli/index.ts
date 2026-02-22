@@ -819,6 +819,8 @@ function runList(): void {
   console.log('')
   console.log(pc.gray('  Skills indexing:'))
   console.log(`    ${pc.white('agdex skills embed')}`)
+  console.log(`    ${pc.white('agdex skills embed --repo vercel-labs/agent-skills')}`)
+  console.log(`    ${pc.white('agdex skills find react')}`)
   console.log('')
 }
 
