@@ -15,6 +15,7 @@ import {
   ensureGitignoreEntry,
   hasExistingIndex,
   removeDocsIndex,
+  getEmbeddedProviders,
 } from '../lib/agents-md'
 import {
   embedSkills,
@@ -875,7 +876,7 @@ interface RemoveCommandOptions {
   provider?: string
 }
 
-function runRemove(options: RemoveCommandOptions): void {
+async function runRemove(options: RemoveCommandOptions): Promise<void> {
   const cwd = process.cwd()
   const output = options.output || getDefaultOutput()
   const targetPath = path.join(cwd, output)
@@ -888,7 +889,71 @@ function runRemove(options: RemoveCommandOptions): void {
   let content = fs.readFileSync(targetPath, 'utf-8')
   const sizeBefore = Buffer.byteLength(content, 'utf-8')
 
-  // Determine what to remove
+  const hasExplicitFlags = options.docs || options.skills || options.provider
+
+  if (!hasExplicitFlags) {
+    // Interactive mode: show checklist of active indices
+    const embeddedProviders = getEmbeddedProviders(content)
+    const hasSkills = hasExistingSkillsIndex(content)
+
+    if (embeddedProviders.length === 0 && !hasSkills) {
+      console.log(pc.yellow('\nNo indices found to remove.\n'))
+      return
+    }
+
+    const choices: { title: string; value: string }[] = []
+    for (const provider of embeddedProviders) {
+      choices.push({ title: `docs: ${provider}`, value: `docs:${provider}` })
+    }
+    if (hasSkills) {
+      choices.push({ title: 'skills', value: 'skills' })
+    }
+
+    const response = await prompts({
+      type: 'multiselect',
+      name: 'indices',
+      message: 'Select indices to remove',
+      choices,
+      instructions: false,
+      hint: '- Space to select, Return to confirm',
+    })
+
+    if (!response.indices || response.indices.length === 0) {
+      console.log(pc.yellow('\nNo indices selected.\n'))
+      return
+    }
+
+    const selected: string[] = response.indices
+    let docsRemoved: string[] = []
+    let skillsRemoved = false
+
+    for (const item of selected) {
+      if (item === 'skills') {
+        content = removeSkillsIndex(content)
+        skillsRemoved = true
+      } else if (item.startsWith('docs:')) {
+        const provider = item.slice(5)
+        content = removeDocsIndex(content, provider)
+        docsRemoved.push(provider)
+      }
+    }
+
+    fs.writeFileSync(targetPath, content, 'utf-8')
+    const sizeAfter = Buffer.byteLength(content, 'utf-8')
+
+    console.log('')
+    for (const provider of docsRemoved) {
+      console.log(`${pc.green('✓')} Removed docs index (${provider}) from ${pc.bold(output)}`)
+    }
+    if (skillsRemoved) {
+      console.log(`${pc.green('✓')} Removed skills index from ${pc.bold(output)}`)
+    }
+    console.log(pc.gray(`  (${formatSize(sizeBefore)} → ${formatSize(sizeAfter)})`))
+    console.log('')
+    return
+  }
+
+  // Non-interactive mode: use explicit flags
   const removeAll = !options.docs && !options.skills
   const removeDocs = removeAll || options.docs
   const removeSkillsIdx = removeAll || options.skills

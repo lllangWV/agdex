@@ -365,6 +365,20 @@ export function hasExistingIndex(content: string, providerName?: string): boolea
 }
 
 /**
+ * Get all embedded provider names from content
+ * Returns an array of provider name strings found in AGENTS-MD-EMBED-START markers
+ */
+export function getEmbeddedProviders(content: string): string[] {
+  const providers: string[] = []
+  const regex = /<!-- AGENTS-MD-EMBED-START:(\S+?) -->/g
+  let match
+  while ((match = regex.exec(content)) !== null) {
+    providers.push(match[1])
+  }
+  return providers
+}
+
+/**
  * Remove the docs index from content
  * If providerName specified, only removes that provider's index
  * If no providerName, removes all indexes

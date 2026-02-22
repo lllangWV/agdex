@@ -46,6 +46,7 @@ export {
   injectIndex,
   hasExistingIndex,
   removeDocsIndex,
+  getEmbeddedProviders,
   ensureGitignoreEntry,
   getGlobalCacheDir,
   getLocalCacheDir,
