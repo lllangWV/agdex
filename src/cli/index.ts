@@ -1230,6 +1230,105 @@ async function runSkillsLocal(skillsPath: string, options: SkillsLocalCommandOpt
   console.log('')
 }
 
+interface SkillsFindCommandOptions {
+  limit?: number
+  output?: string
+}
+
+async function runSkillsFind(query: string | undefined, options: SkillsFindCommandOptions): Promise<void> {
+  const limit = options.limit || 20
+
+  if (query) {
+    // Non-interactive mode: display results
+    console.log(`\nSearching skills.sh for ${pc.cyan(query)}...`)
+
+    try {
+      const results = await fetchSkillsShSearch(query, limit)
+
+      if (results.length === 0) {
+        console.log(pc.yellow(`\nNo skills found matching "${query}".\n`))
+        return
+      }
+
+      console.log(pc.cyan(`\nFound ${results.length} skills:\n`))
+
+      // Find max name length for alignment
+      const maxNameLen = Math.max(...results.map(r => r.name.length))
+
+      for (const result of results) {
+        const name = pc.bold(result.name.padEnd(maxNameLen))
+        const source = pc.gray(result.source)
+        const installs = pc.green(`${result.installs.toLocaleString()} installs`)
+        console.log(`  ${name}  ${source}  ${installs}`)
+      }
+
+      console.log('')
+      console.log(pc.gray(`  To embed: agdex skills embed --repo <owner/repo>`))
+      console.log('')
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.error(pc.red(`Failed to search skills.sh: ${msg}`))
+      process.exit(1)
+    }
+    return
+  }
+
+  // Interactive mode: search + select + embed
+  console.log(pc.cyan('\nagdex - Search skills.sh\n'))
+  console.log(pc.gray('  Search the skills.sh ecosystem for agent skills.\n'))
+
+  const searchResponse = await prompts(
+    {
+      type: 'text',
+      name: 'query',
+      message: 'Search skills',
+      validate: (v: string) => v.trim() ? true : 'Please enter a search query',
+    },
+    { onCancel }
+  )
+
+  console.log(`\n${pc.gray('Searching...')}`)
+
+  try {
+    const results = await fetchSkillsShSearch(searchResponse.query, limit)
+
+    if (results.length === 0) {
+      console.log(pc.yellow(`\nNo skills found matching "${searchResponse.query}".\n`))
+      return
+    }
+
+    // Build choices
+    const choices = results.map(r => ({
+      title: `${r.name} ${pc.gray(`(${r.source})`)} ${pc.green(`${r.installs.toLocaleString()}`)}`,
+      value: r,
+    }))
+
+    const selectResponse = await prompts(
+      {
+        type: 'select',
+        name: 'skill',
+        message: 'Select a skill to embed',
+        choices,
+      },
+      { onCancel }
+    )
+
+    const selected = selectResponse.skill as (typeof results)[0]
+    const repoName = selected.source
+
+    console.log(`\nSelected ${pc.bold(selected.name)} from ${pc.cyan(repoName)}`)
+
+    const output = options.output || await promptForOutputFile()
+
+    // Embed using the repo
+    await runSkillsEmbed({ repo: repoName, output })
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    console.error(pc.red(`Failed to search skills.sh: ${msg}`))
+    process.exit(1)
+  }
+}
+
 skillsCommand
   .command('embed')
   .description('Embed skills index into AGENTS.md')
@@ -1262,5 +1361,12 @@ skillsCommand
   .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('-n, --name <name>', 'Label for this skill source')
   .action(runSkillsLocal)
+
+skillsCommand
+  .command('find [query]')
+  .description('Search skills.sh for agent skills')
+  .option('-l, --limit <n>', 'Max results (default: 20)', parseInt)
+  .option('-o, --output <file>', 'Target file for embedding')
+  .action(runSkillsFind)
 
 program.parse()
