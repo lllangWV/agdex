@@ -481,6 +481,7 @@ Footer`
     it('includes plugin paths when provided', () => {
       const sources = getDefaultSkillSources('/my/project', {
         pluginPaths: ['/path/to/plugin1', '/path/to/plugin2'],
+        includeEnabledPlugins: false,
       })
 
       const pluginSources = sources.filter((s) => s.type === 'plugin')
