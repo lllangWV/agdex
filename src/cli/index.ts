@@ -5,6 +5,7 @@
 import { Command } from 'commander'
 import prompts from 'prompts'
 import pc from 'picocolors'
+import { configurableMultiselect } from './configurable-select'
 import {
   embed,
   pullDocs,
@@ -446,58 +447,43 @@ async function promptForOptions(
     return await promptForGitHubRepo(cwd)
   }
 
-  // Handle built-in provider selection
+  // Handle built-in provider selection (configurable checklist)
   const availableProviders = listProviders().filter(isProviderAvailable)
 
-  const response = await prompts(
-    [
-      {
-        type: 'select',
-        name: 'provider',
-        message: 'Documentation provider',
-        choices: availableProviders.map((p) => ({
-          title: getProvider(p)!.displayName,
-          value: p,
-        })),
-        initial: detected
-          ? availableProviders.indexOf(detected.provider.name as ProviderPreset)
-          : 0,
-      },
-    ],
-    { onCancel }
-  )
-
-  const provider = getProvider(response.provider)!
-
-  // Get version
-  let initialVersion = ''
-  if (provider.detectVersion) {
-    const detectedVersion = provider.detectVersion(cwd)
-    if (detectedVersion.version) {
-      initialVersion = detectedVersion.version
+  const choices = availableProviders.map((p) => {
+    const provider = getProvider(p)!
+    let defaultVersion = ''
+    if (provider.detectVersion) {
+      const detected = provider.detectVersion(cwd)
+      if (detected.version) {
+        defaultVersion = detected.version
+      }
     }
-  }
+    return {
+      title: provider.displayName,
+      value: p,
+      defaultVersion,
+    }
+  })
 
-  const versionResponse = await prompts(
-    {
-      type: 'text',
-      name: 'version',
-      message: `${provider.displayName} version`,
-      initial: initialVersion,
-      validate: (v: string) => (v.trim() ? true : 'Please enter a version'),
-    },
-    { onCancel }
-  )
+  const selected = await configurableMultiselect({
+    message: 'Select documentation providers',
+    choices,
+  })
+
+  if (!selected || selected.length === 0) {
+    console.log(pc.yellow('\nNo providers selected.\n'))
+    process.exit(0)
+  }
 
   const output = await promptForOutputFile()
-  const description = await promptForDescription()
 
-  return {
-    provider,
-    version: versionResponse.version,
-    output,
-    description,
+  for (const item of selected) {
+    const provider = getProvider(item.value as ProviderPreset)!
+    await executeEmbed(cwd, provider, item.version, output, undefined, item.description || undefined)
   }
+
+  process.exit(0)
 }
 
 async function promptForOutputFile(): Promise<string> {
