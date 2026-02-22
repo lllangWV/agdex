@@ -142,7 +142,7 @@ export interface SkillEntry {
   pluginName?: string
 }
 
-export type SkillSource = 'plugin' | 'user' | 'project'
+export type SkillSource = 'plugin' | 'user' | 'project' | 'skills-sh'
 
 export interface SkillSourceConfig {
   type: SkillSource
@@ -165,4 +165,20 @@ export interface SkillsEmbedResult {
   isNewFile?: boolean
   error?: string
   sourceBreakdown?: Record<SkillSource, number>
+}
+
+export interface SkillsShSearchResult {
+  id: string
+  skillId: string
+  name: string
+  installs: number
+  source: string
+}
+
+export interface SkillsShSearchResponse {
+  query: string
+  searchType: string
+  skills: SkillsShSearchResult[]
+  count: number
+  duration_ms: number
 }

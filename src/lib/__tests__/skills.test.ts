@@ -495,4 +495,24 @@ Footer`
       expect(projectSource!.path).toBe('/my/project/.claude/skills')
     })
   })
+
+  describe('skills-sh source type', () => {
+    it('generateSkillsIndex handles skills-sh source', () => {
+      const skills = [
+        {
+          name: 'frontend-design',
+          description: 'Create distinctive frontend interfaces',
+          skillMdPath: '/cache/SKILL.md',
+          siblingFiles: [],
+          source: 'skills-sh' as const,
+          pluginName: 'vercel-labs/agent-skills',
+        },
+      ]
+
+      const index = generateSkillsIndex(skills)
+
+      expect(index).toContain('[Skills Index]')
+      expect(index).toContain('skills-sh:vercel-labs/agent-skills:{frontend-design:Create distinctive frontend interfaces}')
+    })
+  })
 })

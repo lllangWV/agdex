@@ -325,6 +325,7 @@ export function generateSkillsIndex(
 
   // Group skills by source and plugin
   const pluginSkills = new Map<string, SkillEntry[]>()
+  const skillsShSkills = new Map<string, SkillEntry[]>()
   const userSkills: SkillEntry[] = []
   const projectSkills: SkillEntry[] = []
 
@@ -333,6 +334,10 @@ export function generateSkillsIndex(
       const existing = pluginSkills.get(skill.pluginName) || []
       existing.push(skill)
       pluginSkills.set(skill.pluginName, existing)
+    } else if (skill.source === 'skills-sh' && skill.pluginName) {
+      const existing = skillsShSkills.get(skill.pluginName) || []
+      existing.push(skill)
+      skillsShSkills.set(skill.pluginName, existing)
     } else if (skill.source === 'user') {
       userSkills.push(skill)
     } else if (skill.source === 'project') {
@@ -344,6 +349,12 @@ export function generateSkillsIndex(
   for (const [pluginName, entries] of pluginSkills) {
     const skillParts = entries.map((s) => formatSkillEntry(s)).join(';')
     parts.push(`plugin:${pluginName}:{${skillParts}}`)
+  }
+
+  // Format skills-sh skills
+  for (const [repoName, entries] of skillsShSkills) {
+    const skillParts = entries.map((s) => formatSkillEntry(s)).join(';')
+    parts.push(`skills-sh:${repoName}:{${skillParts}}`)
   }
 
   // Format user skills
@@ -528,6 +539,7 @@ export async function embedSkills(options: SkillsEmbedOptions): Promise<SkillsEm
     plugin: 0,
     user: 0,
     project: 0,
+    'skills-sh': 0,
   }
   for (const skill of skills) {
     sourceBreakdown[skill.source]++
