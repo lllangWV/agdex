@@ -3,6 +3,7 @@ import {
   parseSkillFrontmatter,
   discoverFlatSkills,
   discoverPluginSkills,
+  discoverSkillsShRepo,
   collectAllSkills,
   generateSkillsIndex,
   injectSkillsIndex,
@@ -493,6 +494,110 @@ Footer`
 
       expect(userSource!.path).toBe(path.join(os.homedir(), '.claude', 'skills'))
       expect(projectSource!.path).toBe('/my/project/.claude/skills')
+    })
+  })
+
+  describe('discoverSkillsShRepo', () => {
+    it('discovers skills from a local directory with skills.sh structure', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillssh-test-'))
+      const skillsDir = path.join(tempDir, 'skills')
+
+      const skill1Dir = path.join(skillsDir, 'skill-one')
+      fs.mkdirSync(skill1Dir, { recursive: true })
+      fs.writeFileSync(
+        path.join(skill1Dir, 'SKILL.md'),
+        `---
+name: skill-one
+description: First skill
+---
+# Skill One`
+      )
+
+      const skill2Dir = path.join(skillsDir, 'skill-two')
+      fs.mkdirSync(skill2Dir, { recursive: true })
+      fs.writeFileSync(
+        path.join(skill2Dir, 'SKILL.md'),
+        `---
+name: skill-two
+description: Second skill
+---
+# Skill Two`
+      )
+
+      const noSkillDir = path.join(skillsDir, 'not-a-skill')
+      fs.mkdirSync(noSkillDir, { recursive: true })
+      fs.writeFileSync(path.join(noSkillDir, 'README.md'), '# Not a skill')
+
+      try {
+        const skills = discoverSkillsShRepo(tempDir, 'test/repo')
+
+        expect(skills).toHaveLength(2)
+        expect(skills.every(s => s.source === 'skills-sh')).toBe(true)
+        expect(skills.every(s => s.pluginName === 'test/repo')).toBe(true)
+        expect(skills.find(s => s.name === 'skill-one')).toBeDefined()
+        expect(skills.find(s => s.name === 'skill-two')).toBeDefined()
+      } finally {
+        fs.rmSync(tempDir, { recursive: true })
+      }
+    })
+
+    it('discovers skills from root SKILL.md', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillssh-test-'))
+
+      fs.writeFileSync(
+        path.join(tempDir, 'SKILL.md'),
+        `---
+name: root-skill
+description: A root-level skill
+---
+# Root Skill`
+      )
+
+      try {
+        const skills = discoverSkillsShRepo(tempDir, 'test/repo')
+
+        expect(skills).toHaveLength(1)
+        expect(skills[0].name).toBe('root-skill')
+        expect(skills[0].source).toBe('skills-sh')
+      } finally {
+        fs.rmSync(tempDir, { recursive: true })
+      }
+    })
+
+    it('searches multiple skills.sh standard directories', () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'skillssh-test-'))
+
+      const skillsDir = path.join(tempDir, 'skills', 'from-skills')
+      fs.mkdirSync(skillsDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(skillsDir, 'SKILL.md'),
+        `---
+name: from-skills
+description: From skills dir
+---
+# S`
+      )
+
+      const claudeDir = path.join(tempDir, '.claude', 'skills', 'from-claude')
+      fs.mkdirSync(claudeDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(claudeDir, 'SKILL.md'),
+        `---
+name: from-claude
+description: From claude dir
+---
+# C`
+      )
+
+      try {
+        const skills = discoverSkillsShRepo(tempDir, 'test/repo')
+
+        expect(skills).toHaveLength(2)
+        expect(skills.find(s => s.name === 'from-skills')).toBeDefined()
+        expect(skills.find(s => s.name === 'from-claude')).toBeDefined()
+      } finally {
+        fs.rmSync(tempDir, { recursive: true })
+      }
     })
   })
 

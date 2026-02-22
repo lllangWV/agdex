@@ -281,6 +281,64 @@ export function discoverFlatSkills(
 }
 
 /**
+ * Discover skills from a cloned skills.sh-compatible repository.
+ * Searches standard skills.sh locations: root SKILL.md, skills/, .claude/skills/,
+ * .agents/skills/, and other known directories.
+ */
+export function discoverSkillsShRepo(repoDir: string, repoName: string): SkillEntry[] {
+  const skills: SkillEntry[] = []
+  const seen = new Set<string>()
+
+  // Skills.sh standard discovery locations
+  const searchDirs = [
+    'skills',
+    '.claude/skills',
+    '.agents/skills',
+    'skills/.curated',
+    'skills/.experimental',
+  ]
+
+  // Check root SKILL.md
+  const rootSkillMd = path.join(repoDir, 'SKILL.md')
+  if (fs.existsSync(rootSkillMd)) {
+    try {
+      const content = fs.readFileSync(rootSkillMd, 'utf-8')
+      const frontmatter = parseSkillFrontmatter(content)
+      if (frontmatter) {
+        seen.add(frontmatter.name)
+        skills.push({
+          name: frontmatter.name,
+          description: frontmatter.description,
+          skillMdPath: rootSkillMd,
+          siblingFiles: getSiblingFiles(rootSkillMd),
+          source: 'skills-sh',
+          pluginName: repoName,
+        })
+      }
+    } catch {
+      // Skip read errors
+    }
+  }
+
+  // Search standard directories
+  for (const dir of searchDirs) {
+    const fullDir = path.join(repoDir, dir)
+    if (!fs.existsSync(fullDir)) continue
+
+    const discovered = discoverFlatSkills(fullDir, 'skills-sh', repoName)
+    for (const skill of discovered) {
+      if (!seen.has(skill.name)) {
+        seen.add(skill.name)
+        skill.pluginName = repoName
+        skills.push(skill)
+      }
+    }
+  }
+
+  return skills
+}
+
+/**
  * Collect all skills from multiple sources
  */
 export function collectAllSkills(sources: SkillSourceConfig[]): SkillEntry[] {
