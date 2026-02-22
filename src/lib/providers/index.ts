@@ -22,6 +22,7 @@ export { obsidianProvider } from './obsidian'
 export { obsidianExcalidrawProvider } from './obsidian-excalidraw'
 export { ffmpegProvider } from './ffmpeg'
 export { manimProvider } from './manim'
+export { cudaFeedstockProvider } from './cuda-feedstock'
 export { createProvider, createLocalProvider } from './generic'
 export type { GenericProviderOptions } from './generic'
 
@@ -46,6 +47,7 @@ import { obsidianProvider } from './obsidian'
 import { obsidianExcalidrawProvider } from './obsidian-excalidraw'
 import { ffmpegProvider } from './ffmpeg'
 import { manimProvider } from './manim'
+import { cudaFeedstockProvider } from './cuda-feedstock'
 import type { DocProvider, ProviderPreset } from '../types'
 
 /**
@@ -95,6 +97,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return ffmpegProvider
     case 'manim':
       return manimProvider
+    case 'cuda-feedstock':
+      return cudaFeedstockProvider
     // Add more providers as needed
     case 'vue':
     case 'astro':
@@ -109,7 +113,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'sveltekit', 'shadcn-svelte', 'astro', 'tailwind', 'ruff', 'ty', 'basedpyright', 'convex', 'polars', 'delta-rs', 'obsidian', 'obsidian-excalidraw', 'ffmpeg', 'manim']
+  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'sveltekit', 'shadcn-svelte', 'astro', 'tailwind', 'ruff', 'ty', 'basedpyright', 'convex', 'polars', 'delta-rs', 'obsidian', 'obsidian-excalidraw', 'ffmpeg', 'manim', 'cuda-feedstock']
 }
 
 /**
