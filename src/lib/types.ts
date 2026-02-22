@@ -106,7 +106,7 @@ export interface EmbedOptions {
   /** Directory name for downloaded docs */
   docsDir?: string
 
-  /** Use global cache directory (~/.cache/agdex/) instead of local */
+  /** Use global cache directory (~/.cache/agdex/) instead of local (default: true) */
   globalCache?: boolean
 
   /** Additional user-provided description to include in the index */
@@ -122,6 +122,7 @@ export interface EmbedResult {
   sizeAfter?: number
   isNewFile?: boolean
   gitignoreUpdated?: boolean
+  cacheHit?: boolean
   error?: string
 }
 

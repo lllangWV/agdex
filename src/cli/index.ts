@@ -74,6 +74,7 @@ interface EmbedCommandOptions {
   repo?: string
   docsPath?: string
   global?: boolean
+  local?: boolean
   description?: string
 }
 
@@ -115,7 +116,8 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
       provider = result.provider
       version = result.version
       output = result.output
-      await executeEmbed(cwd, provider, version, output, options.global, result.description)
+      const useGlobal = options.local ? false : undefined
+      await executeEmbed(cwd, provider, version, output, useGlobal, result.description)
       return
     }
   } else {
@@ -124,7 +126,8 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     provider = result.provider
     version = result.version
     output = result.output
-    await executeEmbed(cwd, provider, version, output, options.global, result.description)
+    const useGlobal = options.local ? false : undefined
+    await executeEmbed(cwd, provider, version, output, useGlobal, result.description)
     return
   }
 
@@ -141,7 +144,8 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     process.exit(1)
   }
 
-  await executeEmbed(cwd, provider, version, output, options.global, options.description)
+  const useGlobalCache = options.local ? false : undefined
+  await executeEmbed(cwd, provider, version, output, useGlobalCache, options.description)
 }
 
 async function executeEmbed(
@@ -163,13 +167,8 @@ async function executeEmbed(
     resolvedVersion = detected.version
   }
 
-  // Determine display path for the message
-  const displayPath = globalCache
-    ? `~/.cache/agdex/${provider.name}`
-    : `.agdex/${provider.name}`
-
   console.log(
-    `\nDownloading ${pc.cyan(provider.displayName)} ${pc.cyan(resolvedVersion!)} documentation to ${pc.cyan(displayPath)}...`
+    `\nEmbedding ${pc.cyan(provider.displayName)} ${pc.cyan(resolvedVersion!)} documentation...`
   )
 
   const result = await embed({
@@ -184,6 +183,12 @@ async function executeEmbed(
   if (!result.success) {
     console.error(pc.red(`Failed: ${result.error}`))
     process.exit(1)
+  }
+
+  if (result.cacheHit) {
+    console.log(`${pc.green('✓')} Using cached docs from ${pc.bold(result.docsPath!)}`)
+  } else {
+    console.log(`${pc.green('✓')} Downloaded docs to ${pc.bold(result.docsPath!)}`)
   }
 
   const action = result.isNewFile ? 'Created' : 'Updated'
@@ -847,7 +852,8 @@ program
   .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
-  .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
+  .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) (default)')
+  .option('-l, --local', 'Store docs in local .agdex/ instead of global cache')
   .option('-d, --description <text>', 'Additional description to include in the index')
   .action(runEmbed)
 

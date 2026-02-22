@@ -507,7 +507,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     version,
     output = 'AGENTS.md',
     docsDir: customDocsDir,
-    globalCache = false,
+    globalCache = true,
     description,
   } = options
 
@@ -547,17 +547,36 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     isNewFile = false
   }
 
-  // Pull documentation
-  const pullResult = await pullDocs(provider, {
-    cwd,
-    version,
-    docsDir: docsPath,
-  })
+  // Check if docs are already available in the cache
+  const cacheHit = fs.existsSync(docsPath) && fs.readdirSync(docsPath).length > 0
 
-  if (!pullResult.success) {
-    return {
-      success: false,
-      error: pullResult.error,
+  let pullResult: PullResult
+
+  if (cacheHit) {
+    // Use cached docs, resolve version for metadata
+    let resolvedVersion = version
+    if (!resolvedVersion && provider.detectVersion) {
+      const detected = provider.detectVersion(cwd)
+      resolvedVersion = detected.version || undefined
+    }
+    pullResult = {
+      success: true,
+      docsPath,
+      version: resolvedVersion,
+    }
+  } else {
+    // Pull documentation
+    pullResult = await pullDocs(provider, {
+      cwd,
+      version,
+      docsDir: docsPath,
+    })
+
+    if (!pullResult.success) {
+      return {
+        success: false,
+        error: pullResult.error,
+      }
     }
   }
 
@@ -570,8 +589,8 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
   const sections = buildDocTree(docFiles)
 
   // Build regenerate command
-  const globalFlag = globalCache ? ' --global' : ''
-  const regenerateCommand = `npx agdex --provider ${provider.name} --output ${output}${globalFlag}`
+  const localFlag = !globalCache ? ' --local' : ''
+  const regenerateCommand = `npx agdex --provider ${provider.name} --output ${output}${localFlag}`
 
   const indexContent = generateIndex({
     docsPath: docsLinkPath,
@@ -608,6 +627,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     sizeAfter,
     isNewFile,
     gitignoreUpdated,
+    cacheHit,
   }
 }
 
