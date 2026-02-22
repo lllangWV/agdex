@@ -9,6 +9,7 @@ export { tauriProvider } from './tauri'
 export { condaForgeProvider } from './conda-forge'
 export { bunProvider } from './bun'
 export { svelteProvider } from './svelte'
+export { sveltekitProvider } from './sveltekit'
 export { tailwindProvider } from './tailwind'
 export { ruffProvider } from './ruff'
 export { tyProvider } from './ty'
@@ -31,6 +32,7 @@ import { tauriProvider } from './tauri'
 import { condaForgeProvider } from './conda-forge'
 import { bunProvider } from './bun'
 import { svelteProvider } from './svelte'
+import { sveltekitProvider } from './sveltekit'
 import { tailwindProvider } from './tailwind'
 import { ruffProvider } from './ruff'
 import { tyProvider } from './ty'
@@ -65,6 +67,8 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
       return bunProvider
     case 'svelte':
       return svelteProvider
+    case 'sveltekit':
+      return sveltekitProvider
     case 'tailwind':
       return tailwindProvider
     case 'ruff':
@@ -101,7 +105,7 @@ export function getProvider(preset: ProviderPreset): DocProvider | null {
  * List all available provider presets
  */
 export function listProviders(): ProviderPreset[] {
-  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'astro', 'tailwind', 'ruff', 'ty', 'basedpyright', 'convex', 'polars', 'delta-rs', 'obsidian', 'obsidian-excalidraw', 'ffmpeg', 'manim']
+  return ['nextjs', 'react', 'pixi', 'rattler-build', 'tauri', 'conda-forge', 'bun', 'vue', 'svelte', 'sveltekit', 'astro', 'tailwind', 'ruff', 'ty', 'basedpyright', 'convex', 'polars', 'delta-rs', 'obsidian', 'obsidian-excalidraw', 'ffmpeg', 'manim']
 }
 
 /**
