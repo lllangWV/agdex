@@ -677,9 +677,9 @@ async function promptForGitHubRepo(
     docsPath = '.'
     displayName = `${parsed.repo.split('/')[1]} README`
   } else if (contentChoice.content === 'skills') {
-    // Handle skills differently - use the skills embed flow
-    console.log(pc.yellow('\nSkills indexing from GitHub URLs is coming soon!'))
-    console.log(pc.gray('For now, clone the repo and use: agdex skills local <path>\n'))
+    // Embed skills from the detected skills directory
+    const output = await promptForOutputFile()
+    await runSkillsEmbed({ repo: parsed.repo, output })
     process.exit(0)
   } else {
     // Custom path
