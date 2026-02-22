@@ -114,7 +114,8 @@ npx agdex --provider nextjs --description "Project uses App Router only"
 --fw-version <version>    Framework version (auto-detected if not provided)
 -o, --output <file>       Target file (default: from config or CLAUDE.md)
 -d, --description <text>  Additional description to include in the index
--g, --global              Store docs in global cache (~/.cache/agdex/)
+-g, --global              Use global cache ~/.cache/agdex/ (default)
+-l, --local               Use local .agdex/ instead
 ```
 
 ### Custom GitHub Repository
@@ -133,25 +134,35 @@ npx agdex local ./docs --name "My Framework" --output AGENTS.md
 
 ### Skills Indexing
 
-Index Claude Code skills from your `.claude` directories and enabled plugins:
+Index Claude Code skills from your `.claude` directories, enabled plugins, and remote [skills.sh](https://skills.sh) repositories:
 
 ```bash
 # Index skills (auto-detects from all sources)
 npx agdex skills embed
+
+# Index from a skills.sh-compatible GitHub repo
+npx agdex skills embed --repo owner/repo
 
 # List discovered skills
 npx agdex skills list
 
 # Index from a specific local path
 npx agdex skills local ./my-skills --name "My Skills"
+
+# Search skills.sh for community skills
+npx agdex skills find "debugging"
+
+# Search with a result limit
+npx agdex skills find "frontend" --limit 10
 ```
 
 **Auto-detection sources:**
 - **Enabled plugins** - Reads `~/.claude/settings.json` and `.claude/settings.json` to find enabled plugins, then indexes their skills from the plugin cache
 - **User skills** - `~/.claude/skills` (shared across projects)
 - **Project skills** - `.claude/skills` (project-specific)
+- **Remote repos** - Any GitHub repo with skills in standard locations (`skills/`, `.claude/skills/`, `.agents/skills/`)
 
-**Options:**
+**Options for `skills embed`:**
 ```bash
 --plugins       Include enabled plugins from settings.json (default: true)
 --no-plugins    Exclude enabled plugins
@@ -160,8 +171,17 @@ npx agdex skills local ./my-skills --name "My Skills"
 --project       Include .claude/skills (default: true)
 --no-project    Exclude .claude/skills
 --plugin <path> Additional plugin repo paths (with plugins/ structure)
+--repo <owner/repo>  Fetch and index from a skills.sh-compatible GitHub repo
 -o, --output    Target file (default: AGENTS.md)
 ```
+
+**Options for `skills find`:**
+```bash
+-l, --limit <n>   Max results (default: 20)
+-o, --output       Target file for embedding
+```
+
+Running `skills find` without a query argument launches interactive mode, where you can search and immediately embed a selected result.
 
 Skills are discovered by looking for `SKILL.md` files with YAML frontmatter:
 ```yaml
@@ -172,6 +192,22 @@ description: What this skill does
 ```
 
 The index includes skill names, descriptions, and all sibling files (recursively).
+
+### Removing Indexes
+
+Remove embedded indexes interactively or by flag:
+
+```bash
+# Interactive mode - select which indexes to remove
+npx agdex remove
+
+# Remove a specific provider's docs index
+npx agdex remove --provider nextjs
+
+# Remove only docs or skills indexes
+npx agdex remove --docs
+npx agdex remove --skills
+```
 
 ### List Available Providers
 
@@ -262,8 +298,11 @@ This format:
 | rattler-build  | ✓      | prefix-dev/rattler-build |
 | Tauri          | ✓      | tauri-apps/tauri-docs |
 | conda-forge    | ✓      | conda-forge/conda-forge.github.io |
+| CUDA Feedstock | ✓      | conda-forge/cuda-feedstock |
 | Bun            | ✓      | oven-sh/bun |
 | Svelte         | ✓      | sveltejs/svelte |
+| SvelteKit      | ✓      | sveltejs/kit |
+| shadcn-svelte  | ✓      | huntabyte/shadcn-svelte |
 | Tailwind CSS   | ✓      | tailwindlabs/tailwindcss.com |
 | Ruff           | ✓      | astral-sh/ruff |
 | ty             | ✓      | astral-sh/ty |
@@ -275,8 +314,6 @@ This format:
 | Obsidian Excalidraw | ✓ | zsviczian/obsidian-excalidraw-plugin |
 | FFmpeg         | ✓      | FFmpeg/FFmpeg |
 | Manim          | ✓      | ManimCommunity/manim |
-| Vue            | ○      | Coming soon |
-| Astro          | ○      | Coming soon |
 
 ## How It Works
 
