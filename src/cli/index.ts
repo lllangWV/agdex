@@ -24,7 +24,12 @@ import {
   getDefaultSkillSources,
   hasExistingSkillsIndex,
   removeSkillsIndex,
+  discoverSkillsShRepo,
+  generateSkillsIndex,
+  injectSkillsIndex,
+  fetchSkillsShSearch,
 } from '../lib/skills'
+import os from 'os'
 import type { SkillSourceConfig, SkillSource } from '../lib/types'
 import {
   getProvider,
@@ -997,6 +1002,7 @@ interface SkillsEmbedCommandOptions {
   user?: boolean
   project?: boolean
   plugins?: boolean
+  repo?: string
 }
 
 async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void> {
@@ -1010,6 +1016,84 @@ async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void>
     includeEnabledPlugins: options.plugins !== false,
     pluginPaths: options.plugin || [],
   })
+
+  // Handle --repo flag: clone remote repo and discover skills
+  if (options.repo) {
+    const { execSync } = await import('child_process')
+    const repoName = options.repo
+
+    console.log(`\nFetching skills from ${pc.cyan(repoName)}...`)
+
+    // Use global cache
+    const cacheDir = path.join(os.homedir(), '.cache', 'agdex', 'skills-sh', repoName.replace('/', path.sep))
+    const cacheHit = fs.existsSync(cacheDir) && fs.readdirSync(cacheDir).length > 0
+
+    if (!cacheHit) {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agdex-skills-'))
+      try {
+        execSync(
+          `git clone --depth 1 --filter=blob:none https://github.com/${repoName}.git .`,
+          { cwd: tempDir, stdio: 'pipe' }
+        )
+
+        fs.mkdirSync(cacheDir, { recursive: true })
+        fs.cpSync(tempDir, cacheDir, { recursive: true })
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error)
+        console.error(pc.red(`Failed to clone ${repoName}: ${msg}`))
+        process.exit(1)
+      } finally {
+        if (fs.existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true })
+        }
+      }
+      console.log(`${pc.green('✓')} Cloned ${pc.bold(repoName)}`)
+    } else {
+      console.log(`${pc.green('✓')} Using cached ${pc.bold(repoName)}`)
+    }
+
+    const remoteSkills = discoverSkillsShRepo(cacheDir, repoName)
+
+    if (remoteSkills.length === 0) {
+      console.error(pc.red(`No skills found in ${repoName}`))
+      process.exit(1)
+    }
+
+    console.log(`${pc.green('✓')} Found ${pc.bold(remoteSkills.length.toString())} skills`)
+
+    const localSkills = collectAllSkills(sources)
+    const allSkills = [...remoteSkills, ...localSkills]
+
+    const targetPath = path.join(cwd, output)
+    let existingContent = ''
+    let sizeBefore = 0
+    let isNewFile = true
+
+    if (fs.existsSync(targetPath)) {
+      existingContent = fs.readFileSync(targetPath, 'utf-8')
+      sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
+      isNewFile = false
+    }
+
+    const indexContent = generateSkillsIndex(allSkills, {
+      regenerateCommand: `npx agdex skills embed --repo ${repoName}`,
+    })
+
+    const newContent = injectSkillsIndex(existingContent, indexContent)
+    fs.writeFileSync(targetPath, newContent, 'utf-8')
+
+    const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
+
+    const action = isNewFile ? 'Created' : 'Updated'
+    const sizeInfo = isNewFile
+      ? formatSize(sizeAfter)
+      : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
+
+    console.log(`${pc.green('✓')} ${action} ${pc.bold(output)} (${sizeInfo})`)
+    console.log(`${pc.green('✓')} Indexed ${pc.bold(allSkills.length.toString())} skills`)
+    console.log('')
+    return
+  }
 
   if (sources.length === 0) {
     console.error(pc.red('No skill sources configured. Use --plugin, --user, --project, or --plugins flags.'))
@@ -1157,6 +1241,7 @@ skillsCommand
   .option('--no-user', 'Exclude ~/.claude/skills')
   .option('--project', 'Include .claude/skills (default: true)')
   .option('--no-project', 'Exclude .claude/skills')
+  .option('--repo <owner/repo>', 'Fetch and index skills from a skills.sh-compatible GitHub repository')
   .action(runSkillsEmbed)
 
 skillsCommand
