@@ -16,10 +16,35 @@ import type {
   SkillSourceConfig,
   SkillsEmbedOptions,
   SkillsEmbedResult,
+  SkillsShSearchResult,
+  SkillsShSearchResponse,
 } from './types'
 
 const SKILLS_START_MARKER = '<!-- AGENTS-MD-SKILLS-START -->'
 const SKILLS_END_MARKER = '<!-- AGENTS-MD-SKILLS-END -->'
+
+const SKILLS_SH_API_BASE = 'https://skills.sh'
+
+/**
+ * Search the skills.sh API for skills matching a query.
+ * Uses the same endpoint as `npx skills find`.
+ */
+export async function fetchSkillsShSearch(
+  query: string,
+  limit: number = 20
+): Promise<SkillsShSearchResult[]> {
+  const url = `${SKILLS_SH_API_BASE}/api/search?q=${encodeURIComponent(query)}&limit=${limit}`
+
+  const response = await fetch(url)
+
+  if (!response.ok) {
+    throw new Error(`skills.sh API returned ${response.status}`)
+  }
+
+  const data = (await response.json()) as SkillsShSearchResponse
+
+  return data.skills
+}
 
 /**
  * Parse enabled plugins from settings.json
@@ -633,4 +658,6 @@ export type {
   SkillSourceConfig,
   SkillsEmbedOptions,
   SkillsEmbedResult,
+  SkillsShSearchResult,
+  SkillsShSearchResponse,
 } from './types'

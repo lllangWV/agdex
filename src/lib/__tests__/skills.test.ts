@@ -10,6 +10,7 @@ import {
   hasExistingSkillsIndex,
   removeSkillsIndex,
   getDefaultSkillSources,
+  fetchSkillsShSearch,
 } from '../skills'
 import fs from 'fs'
 import path from 'path'
@@ -618,6 +619,12 @@ description: From claude dir
 
       expect(index).toContain('[Skills Index]')
       expect(index).toContain('skills-sh:vercel-labs/agent-skills:{frontend-design:Create distinctive frontend interfaces}')
+    })
+  })
+
+  describe('fetchSkillsShSearch', () => {
+    it('is exported and callable', () => {
+      expect(typeof fetchSkillsShSearch).toBe('function')
     })
   })
 })
