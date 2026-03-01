@@ -28,6 +28,9 @@ export interface GenericProviderOptions {
   /** Function to convert version to git tag */
   versionToTag?: (version: string) => string
 
+  /** Default branch to use when version detection fails (default: 'main') */
+  defaultBranch?: string
+
   /** Files to exclude from index (glob patterns) */
   excludePatterns?: string[]
 
@@ -46,6 +49,7 @@ export function createProvider(options: GenericProviderOptions): DocProvider {
     docsPath,
     extensions = ['.mdx', '.md'],
     packageName,
+    defaultBranch,
     versionToTag = (v) => {
       // If it looks like a branch name (not a version), pass through unchanged
       // Version patterns: starts with digit, or already has v prefix
@@ -101,6 +105,7 @@ export function createProvider(options: GenericProviderOptions): DocProvider {
     docsPath,
     extensions,
     detectVersion,
+    defaultBranch,
     versionToTag,
     excludePatterns,
     instruction:

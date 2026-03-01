@@ -51,17 +51,12 @@ export async function pullDocs(
   } else if (provider.detectVersion) {
     const versionResult = provider.detectVersion(cwd)
     if (!versionResult.version) {
-      return {
-        success: false,
-        error: versionResult.error || `Could not detect ${provider.displayName} version`,
-      }
+      version = provider.defaultBranch || 'main'
+    } else {
+      version = versionResult.version
     }
-    version = versionResult.version
   } else {
-    return {
-      success: false,
-      error: `No version provided and ${provider.displayName} does not support auto-detection`,
-    }
+    version = provider.defaultBranch || 'main'
   }
 
   const docsPath = docsDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'agdex-'))

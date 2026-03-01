@@ -207,6 +207,7 @@ export const nextjsProvider: DocProvider = {
   docsPath: 'docs',
   extensions: ['.mdx', '.md'],
   detectVersion,
+  defaultBranch: 'canary',
   versionToTag: (version) => (version.startsWith('v') ? version : `v${version}`),
   excludePatterns: ['**/index.mdx', '**/index.md'],
   instruction: 'IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any Next.js tasks.',

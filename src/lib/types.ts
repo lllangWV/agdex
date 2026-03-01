@@ -52,6 +52,9 @@ export interface DocProvider {
   /** Function to detect version from a project directory */
   detectVersion?: (cwd: string) => VersionResult
 
+  /** Default branch to use when version detection fails (default: 'main') */
+  defaultBranch?: string
+
   /** Function to convert version to git tag (default: v prefix) */
   versionToTag?: (version: string) => string
 

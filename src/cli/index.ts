@@ -165,17 +165,25 @@ async function executeEmbed(
 ): Promise<void> {
   // Detect version if needed
   let resolvedVersion = version
+  let usingDefaultBranch = false
   if (!resolvedVersion && provider.detectVersion) {
     const detected = provider.detectVersion(cwd)
     if (!detected.version) {
-      console.error(pc.red(detected.error || `Could not detect ${provider.displayName} version`))
-      process.exit(1)
+      const fallbackBranch = provider.defaultBranch || 'main'
+      console.log(
+        pc.yellow(`\n⚠ ${detected.error || `Could not detect ${provider.displayName} version`}`)
+      )
+      console.log(pc.yellow(`  Using latest documentation from '${fallbackBranch}' branch.\n`))
+      resolvedVersion = fallbackBranch
+      usingDefaultBranch = true
+    } else {
+      resolvedVersion = detected.version
     }
-    resolvedVersion = detected.version
   }
 
+  const versionLabel = usingDefaultBranch ? 'latest' : resolvedVersion!
   console.log(
-    `\nEmbedding ${pc.cyan(provider.displayName)} ${pc.cyan(resolvedVersion!)} documentation...`
+    `\nEmbedding ${pc.cyan(provider.displayName)} ${pc.cyan(versionLabel)} documentation...`
   )
 
   const result = await embed({
