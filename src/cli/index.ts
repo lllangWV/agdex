@@ -83,10 +83,20 @@ interface EmbedCommandOptions {
   global?: boolean
   local?: boolean
   description?: string
+  url?: string
 }
 
 async function runEmbed(options: EmbedCommandOptions): Promise<void> {
   const cwd = process.cwd()
+
+  // Delegate to URL scraper if --url is provided
+  if (options.url) {
+    await runUrl(options.url, {
+      output: options.output,
+      name: options.description,
+    })
+    return
+  }
 
   let provider: DocProvider
   let version: string | undefined = options.fwVersion
@@ -957,6 +967,7 @@ program
   .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) (default)')
   .option('-l, --local', 'Store docs in local .agdex/ instead of global cache')
   .option('-d, --description <text>', 'Additional description to include in the index')
+  .option('-u, --url <url>', 'Scrape documentation from a website URL')
   .action(runEmbed)
 
 program
