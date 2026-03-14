@@ -1,6 +1,6 @@
 {
   "name": "agdex",
-  "version": "0.5.1",
+  "version": "0.6.0",
   "description": "Embed compressed documentation indexes into AGENTS.md/CLAUDE.md for AI coding agents",
   "module": "dist/index.js",
   "main": "dist/index.js",
@@ -27,12 +27,15 @@
   },
   "dependencies": {
     "commander": "^12.1.0",
+    "node-html-parser": "^7.1.0",
     "picocolors": "^1.1.1",
-    "prompts": "^2.4.2"
+    "prompts": "^2.4.2",
+    "turndown": "^7.2.2"
   },
   "devDependencies": {
     "@types/bun": "latest",
-    "@types/prompts": "^2.4.9"
+    "@types/prompts": "^2.4.9",
+    "@types/turndown": "^5.0.6"
   },
   "peerDependencies": {
     "typescript": "^5"
