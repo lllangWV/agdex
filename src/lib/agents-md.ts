@@ -36,12 +36,19 @@ function getEndMarker(providerName?: string): string {
 }
 
 /**
- * Pull documentation from a GitHub repository
+ * Pull documentation from a GitHub repository or URL
  */
 export async function pullDocs(
   provider: DocProvider,
-  options: { cwd: string; version?: string; docsDir?: string }
+  options: { cwd: string; version?: string; docsDir?: string; onProgress?: (current: number, total: number, page: string) => void }
 ): Promise<PullResult> {
+  // If provider has URL config, use URL-based scraping
+  if (provider.urlConfig) {
+    const { pullDocsFromUrl } = await import('./url-scraper')
+    const docsPath = options.docsDir ?? fs.mkdtempSync(path.join(os.tmpdir(), 'agdex-'))
+    return pullDocsFromUrl(provider.urlConfig, docsPath, { onProgress: options.onProgress })
+  }
+
   const { cwd, version: versionOverride, docsDir } = options
 
   let version: string

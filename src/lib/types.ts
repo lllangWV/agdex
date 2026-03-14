@@ -31,6 +31,32 @@ export interface GitignoreStatus {
 }
 
 /**
+ * Configuration for scraping documentation from a URL
+ */
+export interface UrlDocConfig {
+  /** Base URL of the documentation site */
+  baseUrl: string
+
+  /** CSS selector for the main content container (default: 'main') */
+  contentSelector?: string
+
+  /** CSS selectors for elements to remove before extraction */
+  removeSelectors?: string[]
+
+  /** List of relative page paths to scrape (if not provided, will be discovered from the index page) */
+  pages?: string[]
+
+  /** Function to discover page URLs from an index page's HTML */
+  discoverPages?: (html: string, baseUrl: string) => string[]
+
+  /** Maximum number of concurrent fetches (default: 5) */
+  concurrency?: number
+
+  /** Delay between fetches in ms (default: 200) */
+  fetchDelay?: number
+}
+
+/**
  * Configuration for a documentation provider
  */
 export interface DocProvider {
@@ -40,7 +66,7 @@ export interface DocProvider {
   /** Display name for CLI output */
   displayName: string
 
-  /** GitHub repository in format 'owner/repo' */
+  /** GitHub repository in format 'owner/repo' (empty string for URL-based or local providers) */
   repo: string
 
   /** Path to docs folder within the repository */
@@ -63,12 +89,15 @@ export interface DocProvider {
 
   /** Custom instruction to include in the index */
   instruction?: string
+
+  /** URL-based documentation configuration (alternative to repo-based fetching) */
+  urlConfig?: UrlDocConfig
 }
 
 /**
  * Built-in provider presets
  */
-export type ProviderPreset = 'nextjs' | 'react' | 'pixi' | 'rattler-build' | 'tauri' | 'conda-forge' | 'bun' | 'vue' | 'svelte' | 'sveltekit' | 'shadcn-svelte' | 'astro' | 'tailwind' | 'ruff' | 'ty' | 'basedpyright' | 'convex' | 'polars' | 'delta-rs' | 'obsidian' | 'obsidian-excalidraw' | 'ffmpeg' | 'manim' | 'cuda-feedstock'
+export type ProviderPreset = 'nextjs' | 'react' | 'pixi' | 'rattler-build' | 'tauri' | 'conda-forge' | 'bun' | 'vue' | 'svelte' | 'sveltekit' | 'shadcn-svelte' | 'astro' | 'tailwind' | 'ruff' | 'ty' | 'basedpyright' | 'convex' | 'polars' | 'delta-rs' | 'obsidian' | 'obsidian-excalidraw' | 'ffmpeg' | 'manim' | 'cuda-feedstock' | 'tensorrt'
 
 export interface IndexOptions {
   /** Path where docs are stored */

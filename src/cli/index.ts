@@ -141,8 +141,8 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
   // Determine output file
   output = options.output || getDefaultOutput()
 
-  // Version validation
-  if (!version && !provider.detectVersion) {
+  // Version validation (URL-based providers don't need version detection)
+  if (!version && !provider.detectVersion && !provider.urlConfig) {
     console.error(
       pc.red(
         `Provider ${provider.displayName} requires --version flag since auto-detection is not supported.`
@@ -166,7 +166,11 @@ async function executeEmbed(
   // Detect version if needed
   let resolvedVersion = version
   let usingDefaultBranch = false
-  if (!resolvedVersion && provider.detectVersion) {
+  if (!resolvedVersion && provider.urlConfig) {
+    // URL-based providers always use 'latest'
+    resolvedVersion = 'latest'
+    usingDefaultBranch = true
+  } else if (!resolvedVersion && provider.detectVersion) {
     const detected = provider.detectVersion(cwd)
     if (!detected.version) {
       const fallbackBranch = provider.defaultBranch || 'main'
@@ -797,6 +801,96 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
   console.log('')
 }
 
+// URL docs command - scrape docs from a website URL
+interface UrlCommandOptions {
+  name?: string
+  output?: string
+  selector?: string
+  concurrency?: string
+  delay?: string
+}
+
+async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
+  const cwd = process.cwd()
+  const { createUrlProvider } = await import('../lib/url-scraper')
+  const { pullDocsFromUrl } = await import('../lib/url-scraper')
+
+  const name = options.name || new URL(url).hostname.replace(/^docs\./, '').replace(/\.\w+$/, '')
+  const providerName = name.toLowerCase().replace(/\s+/g, '-')
+  const output = options.output || getDefaultOutput()
+
+  // Determine cache directory
+  const cacheBase = path.join(os.homedir(), '.cache', 'agdex')
+  const docsPath = path.join(cacheBase, providerName)
+
+  console.log(`\nScraping documentation from ${pc.cyan(url)}...`)
+
+  // Check if cached
+  const cacheHit = fs.existsSync(docsPath) && fs.readdirSync(docsPath).length > 0
+
+  if (cacheHit) {
+    console.log(`${pc.green('✓')} Using cached docs from ${pc.bold(docsPath)}`)
+  } else {
+    const urlConfig = {
+      baseUrl: url,
+      contentSelector: options.selector || 'main#main-content, main, article, .body',
+      removeSelectors: [] as string[],
+      concurrency: options.concurrency ? parseInt(options.concurrency, 10) : 5,
+      fetchDelay: options.delay ? parseInt(options.delay, 10) : 200,
+    }
+
+    const pullResult = await pullDocsFromUrl(urlConfig, docsPath, {
+      onProgress: (current, total, page) => {
+        process.stdout.write(`\r  Fetching pages... ${current}/${total} (${page})`)
+      },
+    })
+
+    if (!pullResult.success) {
+      console.error(pc.red(`\nFailed: ${pullResult.error}`))
+      process.exit(1)
+    }
+
+    console.log(`\n${pc.green('✓')} Downloaded docs to ${pc.bold(docsPath)}`)
+  }
+
+  // Build index from the downloaded markdown files
+  const targetPath = path.join(cwd, output)
+  let existingContent = ''
+  let sizeBefore = 0
+  let isNewFile = true
+
+  if (fs.existsSync(targetPath)) {
+    existingContent = fs.readFileSync(targetPath, 'utf-8')
+    sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
+    isNewFile = false
+  }
+
+  const docFiles = collectDocFiles(docsPath, { extensions: ['.md'] })
+  const sections = buildDocTree(docFiles)
+
+  const indexContent = generateIndex({
+    docsPath,
+    sections,
+    outputFile: output,
+    providerName: name,
+    instruction: `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any ${name} tasks.`,
+    regenerateCommand: `npx agdex url "${url}" --name "${name}" --output ${output}`,
+  })
+
+  const newContent = injectIndex(existingContent, indexContent, providerName)
+  fs.writeFileSync(targetPath, newContent, 'utf-8')
+
+  const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
+
+  const action = isNewFile ? 'Created' : 'Updated'
+  const sizeInfo = isNewFile
+    ? formatSize(sizeAfter)
+    : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
+
+  console.log(`${pc.green('✓')} ${action} ${pc.bold(output)} (${sizeInfo})`)
+  console.log('')
+}
+
 // List providers command
 function runList(): void {
   console.log(pc.cyan('\n📚 Built-in Documentation Providers\n'))
@@ -805,9 +899,11 @@ function runList(): void {
     const provider = getProvider(preset)
     const status = provider ? pc.green('✓') : pc.gray('○')
     const name = provider?.displayName || preset
-    const repo = provider?.repo || 'not implemented'
+    const source = provider?.urlConfig
+      ? provider.urlConfig.baseUrl
+      : provider?.repo || 'not implemented'
 
-    console.log(`  ${status} ${pc.bold(preset)} - ${name} (${pc.gray(repo)})`)
+    console.log(`  ${status} ${pc.bold(preset)} - ${name} (${pc.gray(source)})`)
   }
 
   console.log('')
@@ -821,6 +917,9 @@ function runList(): void {
   console.log(pc.gray('  GitHub URL with path:'))
   console.log(`    ${pc.white('agdex')} ${pc.gray('(interactive)')}`)
   console.log(`    ${pc.gray('→ then enter:')} ${pc.white('https://github.com/anthropics/skills/tree/main/skills')}`)
+  console.log('')
+  console.log(pc.gray('  Website URL:'))
+  console.log(`    ${pc.white('agdex url https://docs.example.com/latest/index.html --name "My Docs"')}`)
   console.log('')
   console.log(pc.gray('  Local documentation:'))
   console.log(`    ${pc.white('agdex local ./my-docs --name "My Docs"')}`)
@@ -838,8 +937,9 @@ program
   .description(`Create compressed documentation indexes for AI coding agents.
 
 Sources you can index:
-  • Built-in providers (Next.js, React, Bun, Pixi, Tauri, etc.)
+  • Built-in providers (Next.js, React, Bun, Pixi, Tauri, TensorRT, etc.)
   • Any GitHub repository URL or owner/repo
+  • Any documentation website URL
   • Local documentation directories
   • Claude Code skills
 
@@ -866,6 +966,16 @@ program
   .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
   .option('-e, --extensions <exts>', 'File extensions to include (comma-separated, default: .md,.mdx)')
   .action(runLocal)
+
+program
+  .command('url <url>')
+  .description('Scrape documentation from a website URL and build index')
+  .option('-n, --name <name>', 'Display name for the documentation (default: derived from URL)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-s, --selector <css>', 'CSS selector for main content (default: main#main-content, main, article)')
+  .option('-c, --concurrency <n>', 'Max concurrent fetches (default: 5)')
+  .option('--delay <ms>', 'Delay between fetch batches in ms (default: 200)')
+  .action(runUrl)
 
 program.command('list').description('List available documentation providers').action(runList)
 

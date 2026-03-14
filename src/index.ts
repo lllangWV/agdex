@@ -61,12 +61,17 @@ export {
   tauriProvider,
   condaForgeProvider,
   bunProvider,
+  tensorrtProvider,
   createProvider,
   createLocalProvider,
+  createUrlProvider,
   getProvider,
   listProviders,
   isProviderAvailable,
 } from './lib/providers'
+
+// URL scraping
+export { pullDocsFromUrl } from './lib/url-scraper'
 
 // Skills functions
 export {
@@ -99,6 +104,7 @@ export type {
   EmbedOptions,
   EmbedResult,
   ProviderPreset,
+  UrlDocConfig,
   SkillFrontmatter,
   SkillEntry,
   SkillSource,
