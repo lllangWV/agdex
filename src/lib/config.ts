@@ -14,7 +14,7 @@ export interface AgdexConfig {
 }
 
 const DEFAULT_CONFIG: AgdexConfig = {
-  output: 'CLAUDE.md',
+  output: 'CLAUDE.local.md',
 }
 
 /**
@@ -55,5 +55,5 @@ export function loadConfig(cwd: string = process.cwd()): AgdexConfig {
  */
 export function getDefaultOutput(cwd: string = process.cwd()): string {
   const config = loadConfig(cwd)
-  return config.output || 'AGENTS.md'
+  return config.output || 'CLAUDE.local.md'
 }

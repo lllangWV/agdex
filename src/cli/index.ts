@@ -516,8 +516,10 @@ async function promptForOptions(
 async function promptForOutputFile(): Promise<string> {
   const defaultOutput = getDefaultOutput()
   const choices = [
-    { title: 'AGENTS.md', value: 'AGENTS.md' },
+    { title: 'CLAUDE.local.md', value: 'CLAUDE.local.md' },
+    { title: 'AGENTS.local.md', value: 'AGENTS.local.md' },
     { title: 'CLAUDE.md', value: 'CLAUDE.md' },
+    { title: 'AGENTS.md', value: 'AGENTS.md' },
     { title: 'Custom...', value: '__custom__' },
   ]
   // Put configured default first
@@ -961,7 +963,7 @@ program
   .description('Embed documentation index into AGENTS.md/CLAUDE.md')
   .option('-p, --provider <name>', 'Documentation provider (nextjs, react, etc.)')
   .option('--fw-version <version>', 'Framework version (auto-detected if not provided)')
-  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
   .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) (default)')
@@ -974,7 +976,7 @@ program
   .command('local <docs-path>')
   .description('Build index from local documentation directory')
   .option('-n, --name <name>', 'Display name for the documentation')
-  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('-e, --extensions <exts>', 'File extensions to include (comma-separated, default: .md,.mdx)')
   .action(runLocal)
 
@@ -982,7 +984,7 @@ program
   .command('url <url>')
   .description('Scrape documentation from a website URL and build index')
   .option('-n, --name <name>', 'Display name for the documentation (default: derived from URL)')
-  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('-s, --selector <css>', 'CSS selector for main content (default: main#main-content, main, article)')
   .option('-c, --concurrency <n>', 'Max concurrent fetches (default: 5)')
   .option('--delay <ms>', 'Delay between fetch batches in ms (default: 200)')
@@ -1116,7 +1118,7 @@ async function runRemove(options: RemoveCommandOptions): Promise<void> {
 program
   .command('remove')
   .description('Remove embedded indices from AGENTS.md/CLAUDE.md')
-  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('--docs', 'Remove only docs index')
   .option('--skills', 'Remove only skills index')
   .option('-p, --provider <name>', 'Remove only a specific provider\'s docs index')
@@ -1463,7 +1465,7 @@ async function runSkillsFind(query: string | undefined, options: SkillsFindComma
 skillsCommand
   .command('embed')
   .description('Embed skills index into AGENTS.md')
-  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('--plugin <path...>', 'Additional plugin repo paths (with plugins/ structure)')
   .option('--plugins', 'Include enabled plugins from settings.json (default: true)')
   .option('--no-plugins', 'Exclude enabled plugins from settings.json')
@@ -1489,7 +1491,7 @@ skillsCommand
 skillsCommand
   .command('local <skills-path>')
   .description('Index skills from a local path')
-  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.md)')
+  .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('-n, --name <name>', 'Label for this skill source')
   .action(runSkillsLocal)
 
