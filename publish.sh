@@ -76,7 +76,21 @@ fi
 echo ""
 read -rp "Publish v$NEW_VERSION to npm? [y/N]: " CONFIRM
 if [[ "$CONFIRM" =~ ^[Yy]$ ]]; then
-  npm publish
+  if ! npm whoami >/dev/null 2>&1; then
+    echo ""
+    echo "Not logged in to npm. Running 'npm login'..."
+    npm login
+    if ! npm whoami >/dev/null 2>&1; then
+      echo "npm login did not complete successfully. Aborting." >&2
+      exit 1
+    fi
+  fi
+
+  if ! npm publish; then
+    echo ""
+    echo "Publish failed. If this was an auth issue, run 'npm login' and retry." >&2
+    exit 1
+  fi
   echo ""
   echo "Published agdex@$NEW_VERSION"
 else
