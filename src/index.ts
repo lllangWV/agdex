@@ -1,9 +1,9 @@
 /**
- * agdex - Embed compressed documentation indexes into AGENTS.md/CLAUDE.md
+ * agdex - Embed compressed documentation indexes into local agent instruction files
  *
  * This package helps AI coding agents (Claude, Cursor, etc.) work with
  * version-matched framework documentation by embedding a compressed
- * docs index directly into your project's AGENTS.md or CLAUDE.md file.
+ * docs index into a local agent instruction file.
  *
  * @example
  * ```ts
@@ -13,7 +13,7 @@
  * const result = await embed({
  *   cwd: process.cwd(),
  *   provider: nextjsProvider,
- *   output: 'AGENTS.md'
+ *   output: 'CLAUDE.local.md'
  * })
  *
  * // Or create a custom provider
@@ -31,7 +31,7 @@
  *   cwd: process.cwd(),
  *   provider: myProvider,
  *   version: '1.0.0',
- *   output: 'CLAUDE.md'
+ *   output: 'CLAUDE.local.md'
  * })
  * ```
  */

@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'bun:test'
 import {
+  embed,
   buildDocTree,
   injectIndex,
   hasExistingIndex,
@@ -318,6 +319,42 @@ Some content after.`
         expect(files.some((f) => f.relativePath.includes('index.md'))).toBe(false)
       } finally {
         fs.rmSync(tempDir, { recursive: true })
+      }
+    })
+  })
+
+  describe('embed', () => {
+    it('uses project-local .agdex cache by default and ignores it', async () => {
+      const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'agdex-embed-test-'))
+      const docsDir = path.join(tempDir, '.agdex', 'test-provider')
+
+      fs.mkdirSync(docsDir, { recursive: true })
+      fs.writeFileSync(path.join(docsDir, 'guide.md'), '# Guide')
+
+      try {
+        const result = await embed({
+          cwd: tempDir,
+          provider: {
+            name: 'test-provider',
+            displayName: 'Test Provider',
+            repo: 'owner/repo',
+            docsPath: 'docs',
+            extensions: ['.md'],
+          },
+        })
+
+        const output = fs.readFileSync(path.join(tempDir, 'CLAUDE.local.md'), 'utf-8')
+        const gitignore = fs.readFileSync(path.join(tempDir, '.gitignore'), 'utf-8')
+
+        expect(result.success).toBe(true)
+        expect(result.cacheHit).toBe(true)
+        expect(result.docsPath).toBe('.agdex/test-provider')
+        expect(result.gitignoreUpdated).toBe(true)
+        expect(output).toContain('root: ./.agdex/test-provider')
+        expect(output).toContain('If docs missing, run: npx agdex --provider test-provider --output CLAUDE.local.md')
+        expect(gitignore).toContain('.agdex/')
+      } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true })
       }
     })
   })

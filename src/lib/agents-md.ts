@@ -2,7 +2,7 @@
  * agdex: Generate documentation index for AI coding agents.
  *
  * Downloads docs from GitHub via git sparse-checkout, builds a compact
- * index of all doc files, and injects it into CLAUDE.md or AGENTS.md.
+ * index of all doc files, and injects it into a local agent instruction file.
  */
 import { execSync } from 'child_process'
 import fs from 'fs'
@@ -284,7 +284,7 @@ export function buildDocTree(files: DocFile[]): DocSection[] {
 }
 
 /**
- * Generate a compressed index for AGENTS.md/CLAUDE.md
+ * Generate a compressed index for an agent instruction file.
  */
 export function generateIndex(options: IndexOptions): string {
   const { docsPath, sections, outputFile, providerName, instruction, description, regenerateCommand } = options
@@ -514,16 +514,16 @@ export function getLocalCacheDir(cwd: string): string {
 }
 
 /**
- * High-level function to embed documentation into AGENTS.md/CLAUDE.md
+ * High-level function to embed documentation into an agent instruction file.
  */
 export async function embed(options: EmbedOptions): Promise<EmbedResult> {
   const {
     cwd,
     provider,
     version,
-    output = 'AGENTS.md',
+    output = 'CLAUDE.local.md',
     docsDir: customDocsDir,
-    globalCache = true,
+    globalCache = false,
     description,
   } = options
 
@@ -605,8 +605,8 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
   const sections = buildDocTree(docFiles)
 
   // Build regenerate command
-  const localFlag = !globalCache ? ' --local' : ''
-  const regenerateCommand = `npx agdex --provider ${provider.name} --output ${output}${localFlag}`
+  const cacheFlag = globalCache ? ' --global' : ''
+  const regenerateCommand = `npx agdex --provider ${provider.name} --output ${output}${cacheFlag}`
 
   const indexContent = generateIndex({
     docsPath: docsLinkPath,

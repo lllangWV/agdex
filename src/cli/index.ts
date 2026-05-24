@@ -86,14 +86,25 @@ interface EmbedCommandOptions {
   url?: string
 }
 
+function resolveGlobalCacheOption(options: { global?: boolean; local?: boolean }): boolean {
+  if (options.global && options.local) {
+    console.error(pc.red('Choose either --global or --local, not both.'))
+    process.exit(1)
+  }
+
+  return options.global ? true : false
+}
+
 async function runEmbed(options: EmbedCommandOptions): Promise<void> {
   const cwd = process.cwd()
+  const globalCache = resolveGlobalCacheOption(options)
 
   // Delegate to URL scraper if --url is provided
   if (options.url) {
     await runUrl(options.url, {
       output: options.output,
       name: options.description,
+      global: globalCache,
     })
     return
   }
@@ -133,8 +144,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
       provider = result.provider
       version = result.version
       output = result.output
-      const useGlobal = options.local ? false : undefined
-      await executeEmbed(cwd, provider, version, output, useGlobal, result.description)
+      await executeEmbed(cwd, provider, version, output, globalCache, result.description)
       return
     }
   } else {
@@ -143,8 +153,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     provider = result.provider
     version = result.version
     output = result.output
-    const useGlobal = options.local ? false : undefined
-    await executeEmbed(cwd, provider, version, output, useGlobal, result.description)
+    await executeEmbed(cwd, provider, version, output, globalCache, result.description)
     return
   }
 
@@ -161,8 +170,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     process.exit(1)
   }
 
-  const useGlobalCache = options.local ? false : undefined
-  await executeEmbed(cwd, provider, version, output, useGlobalCache, options.description)
+  await executeEmbed(cwd, provider, version, output, globalCache, options.description)
 }
 
 async function executeEmbed(
@@ -820,6 +828,8 @@ interface UrlCommandOptions {
   selector?: string
   concurrency?: string
   delay?: string
+  global?: boolean
+  local?: boolean
 }
 
 async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
@@ -830,10 +840,14 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
   const name = options.name || new URL(url).hostname.replace(/^docs\./, '').replace(/\.\w+$/, '')
   const providerName = name.toLowerCase().replace(/\s+/g, '-')
   const output = options.output || getDefaultOutput()
+  const globalCache = resolveGlobalCacheOption(options)
 
   // Determine cache directory
-  const cacheBase = path.join(os.homedir(), '.cache', 'agdex')
-  const docsPath = path.join(cacheBase, providerName)
+  const docsDir = globalCache
+    ? path.join(os.homedir(), '.cache', 'agdex', providerName)
+    : path.join('.agdex', providerName)
+  const docsPath = path.isAbsolute(docsDir) ? docsDir : path.join(cwd, docsDir)
+  const docsLinkPath = globalCache ? docsPath : `./${docsDir}`
 
   console.log(`\nScraping documentation from ${pc.cyan(url)}...`)
 
@@ -881,12 +895,12 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
   const sections = buildDocTree(docFiles)
 
   const indexContent = generateIndex({
-    docsPath,
+    docsPath: docsLinkPath,
     sections,
     outputFile: output,
     providerName: name,
     instruction: `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any ${name} tasks.`,
-    regenerateCommand: `npx agdex url "${url}" --name "${name}" --output ${output}`,
+    regenerateCommand: `npx agdex url "${url}" --name "${name}" --output ${output}${globalCache ? ' --global' : ''}`,
   })
 
   const newContent = injectIndex(existingContent, indexContent, providerName)
@@ -900,6 +914,12 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
     : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
 
   console.log(`${pc.green('✓')} ${action} ${pc.bold(output)} (${sizeInfo})`)
+  if (!globalCache) {
+    const gitignoreResult = ensureGitignoreEntry(cwd, '.agdex')
+    if (gitignoreResult.updated) {
+      console.log(`${pc.green('✓')} Added ${pc.bold('.agdex')} to .gitignore`)
+    }
+  }
   console.log('')
 }
 
@@ -966,8 +986,8 @@ program
   .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
   .option('--repo <owner/repo>', 'Custom GitHub repository')
   .option('--docs-path <path>', 'Path to docs folder in repository')
-  .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) (default)')
-  .option('-l, --local', 'Store docs in local .agdex/ instead of global cache')
+  .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
+  .option('-l, --local', 'Store docs in local .agdex/ (default)')
   .option('-d, --description <text>', 'Additional description to include in the index')
   .option('-u, --url <url>', 'Scrape documentation from a website URL')
   .action(runEmbed)
@@ -988,6 +1008,8 @@ program
   .option('-s, --selector <css>', 'CSS selector for main content (default: main#main-content, main, article)')
   .option('-c, --concurrency <n>', 'Max concurrent fetches (default: 5)')
   .option('--delay <ms>', 'Delay between fetch batches in ms (default: 200)')
+  .option('-g, --global', 'Store docs in global cache (~/.cache/agdex/) instead of local .agdex/')
+  .option('-l, --local', 'Store docs in local .agdex/ (default)')
   .action(runUrl)
 
 program.command('list').description('List available documentation providers').action(runList)

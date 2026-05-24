@@ -138,7 +138,7 @@ export interface EmbedOptions {
   /** Directory name for downloaded docs */
   docsDir?: string
 
-  /** Use global cache directory (~/.cache/agdex/) instead of local (default: true) */
+  /** Use global cache directory (~/.cache/agdex/) instead of local .agdex/ (default: false) */
   globalCache?: boolean
 
   /** Additional user-provided description to include in the index */

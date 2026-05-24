@@ -1,6 +1,6 @@
 # agdex
 
-Embed compressed documentation indexes into `AGENTS.md` or `CLAUDE.md` for AI coding agents.
+Embed compressed documentation indexes into local agent instruction files.
 
 This package helps AI coding agents (Claude, Cursor, etc.) work with version-matched framework documentation by embedding a compressed docs index directly into your project's markdown file. Based on [Vercel's research](https://vercel.com/blog/teaching-ai-agents-how-to-use-nextjs) showing that embedded docs achieve 100% pass rates compared to 79% for skills.
 
@@ -10,8 +10,9 @@ AI coding agents rely on training data that becomes outdated. When agents don't 
 
 1. Downloads version-matched documentation from GitHub
 2. Creates a compressed index (~8KB for Next.js)
-3. Embeds it in your `AGENTS.md` or `CLAUDE.md`
-4. Agents can then retrieve specific docs on demand
+3. Stores the docs in local `.agdex/` cache
+4. Embeds an index in your local agent instruction file
+5. Agents can then retrieve specific docs on demand
 
 The key instruction embedded tells agents to **prefer retrieval-led reasoning over pre-training-led reasoning**.
 
@@ -38,7 +39,7 @@ Create a `.agdexrc.json` file in your project root:
 
 ```json
 {
-  "output": "CLAUDE.md"
+  "output": "CLAUDE.local.md"
 }
 ```
 
@@ -50,7 +51,7 @@ Add an `agdex` field to your `package.json`:
 {
   "name": "my-project",
   "agdex": {
-    "output": "CLAUDE.md"
+    "output": "CLAUDE.local.md"
   }
 }
 ```
@@ -61,7 +62,7 @@ Add an `agdex` field to your `package.json`:
 
 | Option   | Type   | Default     | Description |
 |----------|--------|-------------|-------------|
-| `output` | string | `CLAUDE.md` | Default output file for indexes |
+| `output` | string | `CLAUDE.local.md` | Default output file for indexes |
 
 ## CLI Usage
 
@@ -112,10 +113,10 @@ npx agdex --provider nextjs --description "Project uses App Router only"
 ```bash
 -p, --provider <name>     Documentation provider (nextjs, react, etc.)
 --fw-version <version>    Framework version (auto-detected if not provided)
--o, --output <file>       Target file (default: from config or CLAUDE.md)
+-o, --output <file>       Target file (default: from config or CLAUDE.local.md)
 -d, --description <text>  Additional description to include in the index
--g, --global              Use global cache ~/.cache/agdex/ (default)
--l, --local               Use local .agdex/ instead
+-g, --global              Use global cache ~/.cache/agdex/ instead of local .agdex/
+-l, --local               Use local .agdex/ (default)
 ```
 
 ### Custom GitHub Repository
@@ -224,7 +225,7 @@ import { embed, nextjsProvider, createProvider } from 'agdex'
 const result = await embed({
   cwd: process.cwd(),
   provider: nextjsProvider,
-  output: 'AGENTS.md'
+  output: 'CLAUDE.local.md'
 })
 
 // Create custom provider
@@ -240,7 +241,7 @@ await embed({
   cwd: process.cwd(),
   provider: myProvider,
   version: '1.0.0',
-  output: 'CLAUDE.md'
+  output: 'CLAUDE.local.md'
 })
 ```
 
