@@ -92,6 +92,33 @@ export {
 export { loadConfig, getDefaultOutput } from './lib/config'
 export type { AgdexConfig } from './lib/config'
 
+// Index maintenance
+export {
+  createIndexId,
+  getLockfilePath,
+  readIndexLockfile,
+  writeIndexLockfile,
+  upsertIndexLockEntry,
+} from './lib/lockfile'
+export {
+  createStatusReport,
+  getDefaultStatusTargets,
+  readEmbeddedMarkers,
+} from './lib/index-maintenance'
+export type {
+  IndexLockEntry,
+  IndexLockSource,
+  IndexLockfile,
+  IndexSourceType,
+} from './lib/lockfile'
+export type {
+  EmbeddedMarker,
+  IndexHealth,
+  IndexStatus,
+  StatusOptions,
+  StatusReport,
+} from './lib/index-maintenance'
+
 // Types
 export type {
   DocProvider,

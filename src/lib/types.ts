@@ -132,6 +132,9 @@ export interface EmbedOptions {
   /** Override version detection */
   version?: string
 
+  /** Whether the recorded version came from detection, an explicit pin, or a default branch fallback */
+  versionMode?: 'auto' | 'pinned' | 'default-branch' | 'unknown'
+
   /** Target file (CLAUDE.md, AGENTS.md, etc.) */
   output?: string
 

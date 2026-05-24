@@ -345,6 +345,7 @@ Some content after.`
 
         const output = fs.readFileSync(path.join(tempDir, 'CLAUDE.local.md'), 'utf-8')
         const gitignore = fs.readFileSync(path.join(tempDir, '.gitignore'), 'utf-8')
+        const lockfile = JSON.parse(fs.readFileSync(path.join(tempDir, '.agdex', 'agdex.lock'), 'utf-8'))
 
         expect(result.success).toBe(true)
         expect(result.cacheHit).toBe(true)
@@ -353,6 +354,13 @@ Some content after.`
         expect(output).toContain('root: ./.agdex/test-provider')
         expect(output).toContain('If docs missing, run: npx agdex --provider test-provider --output CLAUDE.local.md')
         expect(gitignore).toContain('.agdex/')
+        expect(lockfile.indexes[0]).toMatchObject({
+          id: 'docs:test-provider:CLAUDE.local.md',
+          kind: 'docs',
+          targetFile: 'CLAUDE.local.md',
+          marker: 'test-provider',
+          cachePath: '.agdex/test-provider',
+        })
       } finally {
         fs.rmSync(tempDir, { recursive: true, force: true })
       }

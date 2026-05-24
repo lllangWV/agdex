@@ -18,6 +18,7 @@ import type {
   EmbedOptions,
   EmbedResult,
 } from './types'
+import { createIndexId, upsertIndexLockEntry } from './lockfile'
 
 const START_MARKER_PREFIX = '<!-- AGENTS-MD-EMBED-START'
 const END_MARKER_PREFIX = '<!-- AGENTS-MD-EMBED-END'
@@ -521,6 +522,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     cwd,
     provider,
     version,
+    versionMode,
     output = 'CLAUDE.local.md',
     docsDir: customDocsDir,
     globalCache = false,
@@ -633,6 +635,29 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     const gitignoreResult = ensureGitignoreEntry(cwd, customDocsDir)
     gitignoreUpdated = gitignoreResult.updated
   }
+
+  upsertIndexLockEntry(cwd, {
+    id: createIndexId('docs', provider.name, output),
+    kind: 'docs',
+    source: {
+      type: provider.urlConfig
+        ? 'url-docs'
+        : provider.name === 'custom'
+          ? 'github-docs'
+          : 'builtin-provider',
+      name: provider.name,
+      displayName: provider.displayName,
+      repo: provider.repo || undefined,
+      docsPath: provider.docsPath || undefined,
+      url: provider.urlConfig?.baseUrl,
+      version: pullResult.version,
+      versionMode: versionMode || (version ? 'pinned' : pullResult.version ? 'auto' : 'unknown'),
+    },
+    targetFile: output,
+    marker: provider.name,
+    cachePath: docsPath,
+    command: regenerateCommand,
+  })
 
   return {
     success: true,

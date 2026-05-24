@@ -210,6 +210,35 @@ npx agdex remove --docs
 npx agdex remove --skills
 ```
 
+### Maintaining Indexes
+
+Successful embeds write local maintenance state to `.agdex/agdex.lock`. The lockfile records the target agent instruction file, marker, source metadata, cache path, and display command for each last-known-good index. It is generated local state and should stay unversioned with `.agdex/`.
+
+Inspect index health:
+
+```bash
+npx agdex status
+npx agdex status --check
+npx agdex status --json
+npx agdex status --output AGENTS.md
+```
+
+Refresh lockfile-backed indexes:
+
+```bash
+npx agdex refresh
+npx agdex refresh --force
+npx agdex refresh --repair
+npx agdex refresh --provider nextjs
+```
+
+Create lockfile entries for existing embedded docs markers when agdex can safely infer marker and cache metadata:
+
+```bash
+npx agdex migrate
+npx agdex migrate --output AGENTS.md
+```
+
 ### List Available Providers
 
 ```bash

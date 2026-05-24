@@ -56,6 +56,12 @@ import {
 } from '../lib/providers'
 import type { DocProvider, ProviderPreset } from '../lib/types'
 import { getDefaultOutput } from '../lib/config'
+import { createStatusReport, type IndexStatus } from '../lib/index-maintenance'
+import {
+  createIndexId,
+  readIndexLockfile,
+  upsertIndexLockEntry,
+} from '../lib/lockfile'
 import fs from 'fs'
 import path from 'path'
 
@@ -144,7 +150,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
       provider = result.provider
       version = result.version
       output = result.output
-      await executeEmbed(cwd, provider, version, output, globalCache, result.description)
+      await executeEmbed(cwd, provider, version, output, globalCache, result.description, version ? 'auto' : 'unknown')
       return
     }
   } else {
@@ -153,7 +159,7 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     provider = result.provider
     version = result.version
     output = result.output
-    await executeEmbed(cwd, provider, version, output, globalCache, result.description)
+    await executeEmbed(cwd, provider, version, output, globalCache, result.description, version ? 'auto' : 'unknown')
     return
   }
 
@@ -170,7 +176,15 @@ async function runEmbed(options: EmbedCommandOptions): Promise<void> {
     process.exit(1)
   }
 
-  await executeEmbed(cwd, provider, version, output, globalCache, options.description)
+  await executeEmbed(
+    cwd,
+    provider,
+    version,
+    output,
+    globalCache,
+    options.description,
+    options.fwVersion ? 'pinned' : version ? 'auto' : 'unknown'
+  )
 }
 
 async function executeEmbed(
@@ -179,7 +193,8 @@ async function executeEmbed(
   version: string | undefined,
   output: string,
   globalCache?: boolean,
-  description?: string
+  description?: string,
+  versionMode?: 'auto' | 'pinned' | 'default-branch' | 'unknown'
 ): Promise<void> {
   // Detect version if needed
   let resolvedVersion = version
@@ -198,8 +213,10 @@ async function executeEmbed(
       console.log(pc.yellow(`  Using latest documentation from '${fallbackBranch}' branch.\n`))
       resolvedVersion = fallbackBranch
       usingDefaultBranch = true
+      versionMode = versionMode || 'default-branch'
     } else {
       resolvedVersion = detected.version
+      versionMode = versionMode || 'auto'
     }
   }
 
@@ -212,6 +229,7 @@ async function executeEmbed(
     cwd,
     provider,
     version: resolvedVersion,
+    versionMode,
     output,
     globalCache,
     description,
@@ -515,7 +533,7 @@ async function promptForOptions(
 
   for (const item of selected) {
     const provider = getProvider(item.value as ProviderPreset)!
-    await executeEmbed(cwd, provider, item.version, output, undefined, item.description || undefined)
+    await executeEmbed(cwd, provider, item.version, output, undefined, item.description || undefined, item.version ? 'pinned' : 'auto')
   }
 
   process.exit(0)
@@ -812,6 +830,22 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
 
+  upsertIndexLockEntry(cwd, {
+    id: createIndexId('docs', providerName, output),
+    kind: 'docs',
+    source: {
+      type: 'local-docs',
+      name: providerName,
+      displayName: name,
+      docsPath,
+      versionMode: 'unknown',
+    },
+    targetFile: output,
+    marker: providerName,
+    cachePath: absoluteDocsPath,
+    command: `npx agdex local ${docsPath} --name "${name}" --output ${output}`,
+  })
+
   const action = isNewFile ? 'Created' : 'Updated'
   const sizeInfo = isNewFile
     ? formatSize(sizeAfter)
@@ -907,6 +941,23 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
   fs.writeFileSync(targetPath, newContent, 'utf-8')
 
   const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
+
+  upsertIndexLockEntry(cwd, {
+    id: createIndexId('docs', providerName, output),
+    kind: 'docs',
+    source: {
+      type: 'url-docs',
+      name: providerName,
+      displayName: name,
+      url,
+      version: 'latest',
+      versionMode: 'default-branch',
+    },
+    targetFile: output,
+    marker: providerName,
+    cachePath: docsPath,
+    command: `npx agdex url "${url}" --name "${name}" --output ${output}${globalCache ? ' --global' : ''}`,
+  })
 
   const action = isNewFile ? 'Created' : 'Updated'
   const sizeInfo = isNewFile
@@ -1013,6 +1064,252 @@ program
   .action(runUrl)
 
 program.command('list').description('List available documentation providers').action(runList)
+
+interface StatusCommandOptions {
+  output?: string
+  json?: boolean
+  check?: boolean
+}
+
+function runStatus(options: StatusCommandOptions): void {
+  const report = createStatusReport({
+    cwd: process.cwd(),
+    targetFile: options.output,
+  })
+  const unhealthy = report.indexes.filter((index) => index.health !== 'ok')
+
+  if (options.json) {
+    console.log(JSON.stringify(report, null, 2))
+  } else {
+    printStatusReport(report.indexes, report.scannedFiles)
+  }
+
+  if (options.check && unhealthy.length > 0) {
+    process.exit(1)
+  }
+}
+
+function printStatusReport(indexes: IndexStatus[], scannedFiles: string[]): void {
+  console.log(pc.cyan('\nagdex status\n'))
+  console.log(pc.gray(`  Scanned: ${scannedFiles.length > 0 ? scannedFiles.join(', ') : 'no agent instruction files found'}`))
+
+  if (indexes.length === 0) {
+    console.log(pc.yellow('\n  No indexes found.\n'))
+    return
+  }
+
+  console.log('')
+  for (const index of indexes) {
+    const symbol = index.health === 'ok' ? pc.green('✓') : pc.yellow('!')
+    const source = index.source?.displayName || index.source?.name || index.marker
+    console.log(`  ${symbol} ${pc.bold(index.kind)} ${source} ${pc.gray(`(${index.targetFile})`)}`)
+    console.log(`    health: ${formatHealth(index.health)}`)
+    if (index.cachePath) {
+      console.log(`    cache: ${index.cachePath}`)
+    }
+    if (index.health !== 'ok') {
+      console.log(`    action: ${index.suggestedAction}`)
+    }
+  }
+  console.log('')
+}
+
+function formatHealth(health: string): string {
+  if (health === 'ok') return pc.green(health)
+  return pc.yellow(health)
+}
+
+program
+  .command('status')
+  .description('Inspect lockfile-backed index health')
+  .option('-o, --output <file>', 'Scope status to one agent instruction file')
+  .option('--json', 'Print machine-readable JSON')
+  .option('--check', 'Exit non-zero when any discovered index is unhealthy')
+  .action(runStatus)
+
+interface RefreshCommandOptions {
+  output?: string
+  provider?: string
+  kind?: 'docs' | 'skills'
+  force?: boolean
+  repair?: boolean
+}
+
+async function runRefresh(options: RefreshCommandOptions): Promise<void> {
+  const cwd = process.cwd()
+  const lockfile = readIndexLockfile(cwd)
+  const repairIds = options.repair
+    ? new Set(
+        createStatusReport({ cwd, targetFile: options.output }).indexes
+          .filter((index) => index.lockfileEntry && index.health !== 'ok')
+          .map((index) => index.id)
+      )
+    : null
+
+  const entries = lockfile.indexes.filter((entry) => {
+    if (options.output && entry.targetFile !== options.output) return false
+    if (options.kind && entry.kind !== options.kind) return false
+    if (options.provider && entry.source.name !== options.provider && entry.marker !== options.provider) return false
+    if (repairIds && !repairIds.has(entry.id)) return false
+    return true
+  })
+
+  if (entries.length === 0) {
+    console.log(pc.yellow('\nNo lockfile-backed indexes matched refresh filters.\n'))
+    return
+  }
+
+  for (const entry of entries) {
+    if (options.force && entry.kind === 'docs') {
+      const cachePath = path.isAbsolute(entry.cachePath) ? entry.cachePath : path.join(cwd, entry.cachePath)
+      if (fs.existsSync(cachePath)) {
+        fs.rmSync(cachePath, { recursive: true, force: true })
+      }
+    }
+
+    if (entry.kind === 'skills') {
+      if (entry.source.type === 'skills-sh' && entry.source.repo) {
+        await runSkillsEmbed({ repo: entry.source.repo, output: entry.targetFile })
+      } else {
+        await runSkillsEmbed({ output: entry.targetFile })
+      }
+      continue
+    }
+
+    if (entry.source.type === 'local-docs' && entry.source.docsPath) {
+      await runLocal(entry.source.docsPath, {
+        name: entry.source.displayName || entry.source.name,
+        output: entry.targetFile,
+      })
+      continue
+    }
+
+    if (entry.source.type === 'url-docs' && entry.source.url) {
+      await runUrl(entry.source.url, {
+        name: entry.source.displayName || entry.source.name,
+        output: entry.targetFile,
+        global: path.isAbsolute(entry.cachePath),
+      })
+      continue
+    }
+
+    const provider =
+      entry.source.type === 'builtin-provider'
+        ? getProvider(entry.source.name as ProviderPreset)
+        : entry.source.repo && entry.source.docsPath
+          ? createProvider({
+              name: entry.source.name,
+              displayName: entry.source.displayName || entry.source.name,
+              repo: entry.source.repo,
+              docsPath: entry.source.docsPath,
+            })
+          : null
+
+    if (!provider) {
+      console.log(pc.yellow(`Skipped ${entry.id}: source metadata is incomplete.`))
+      continue
+    }
+
+    const version = entry.source.versionMode === 'pinned' ? entry.source.version : undefined
+    await executeEmbed(cwd, provider, version, entry.targetFile, path.isAbsolute(entry.cachePath), undefined, entry.source.versionMode)
+  }
+}
+
+program
+  .command('refresh')
+  .description('Refresh lockfile-backed indexes')
+  .option('-o, --output <file>', 'Refresh indexes in one agent instruction file')
+  .option('-p, --provider <name>', 'Refresh one provider or marker name')
+  .option('--kind <kind>', 'Refresh only docs or skills indexes')
+  .option('--force', 'Delete existing documentation caches before refreshing')
+  .option('--repair', 'Refresh only unhealthy lockfile-backed indexes')
+  .action(runRefresh)
+
+interface MigrateCommandOptions {
+  output?: string
+  json?: boolean
+}
+
+function runMigrate(options: MigrateCommandOptions): void {
+  const cwd = process.cwd()
+  const targets = options.output ? [options.output] : ['AGENTS.md', 'AGENTS.local.md', 'CLAUDE.md', 'CLAUDE.local.md']
+  const migrated: string[] = []
+  const skipped: Array<{ targetFile: string; marker: string; reason: string }> = []
+
+  for (const targetFile of targets) {
+    const targetPath = path.join(cwd, targetFile)
+    if (!fs.existsSync(targetPath)) continue
+
+    const content = fs.readFileSync(targetPath, 'utf-8')
+    const regex = /<!-- AGENTS-MD-EMBED-START:(\S+?) -->\n([\s\S]*?)\n<!-- AGENTS-MD-EMBED-END:\1 -->/g
+    let match: RegExpExecArray | null
+
+    while ((match = regex.exec(content)) !== null) {
+      const marker = match[1]
+      const block = match[2]
+      const rootMatch = block.match(/(?:^|\|)root:\s*([^|]+)/)
+      if (!rootMatch) {
+        skipped.push({ targetFile, marker, reason: 'missing root metadata' })
+        continue
+      }
+
+      const cachePath = rootMatch[1].trim().replace(/^\.\//, '')
+      const provider = getProvider(marker as ProviderPreset)
+      const source = provider
+        ? {
+            type: 'builtin-provider' as const,
+            name: provider.name,
+            displayName: provider.displayName,
+            repo: provider.repo,
+            docsPath: provider.docsPath,
+            versionMode: 'unknown' as const,
+          }
+        : {
+            type: 'local-docs' as const,
+            name: marker,
+            displayName: marker,
+            docsPath: cachePath,
+            versionMode: 'unknown' as const,
+          }
+
+      const entry = upsertIndexLockEntry(cwd, {
+        id: createIndexId('docs', marker, targetFile),
+        kind: 'docs',
+        source,
+        targetFile,
+        marker,
+        cachePath,
+        command: `npx agdex --provider ${marker} --output ${targetFile}`,
+      })
+      migrated.push(entry.id)
+    }
+  }
+
+  const result = { migrated, skipped }
+  if (options.json) {
+    console.log(JSON.stringify(result, null, 2))
+    return
+  }
+
+  console.log(pc.cyan('\nagdex migrate\n'))
+  for (const id of migrated) {
+    console.log(`${pc.green('✓')} Created lockfile entry ${pc.bold(id)}`)
+  }
+  for (const item of skipped) {
+    console.log(`${pc.yellow('!')} Skipped ${item.marker} in ${item.targetFile}: ${item.reason}`)
+  }
+  if (migrated.length === 0 && skipped.length === 0) {
+    console.log(pc.yellow('  No migratable indexes found.'))
+  }
+  console.log('')
+}
+
+program
+  .command('migrate')
+  .description('Create lockfile entries from existing embedded markers when safe')
+  .option('-o, --output <file>', 'Migrate one agent instruction file')
+  .option('--json', 'Print machine-readable JSON')
+  .action(runMigrate)
 
 // Remove command
 interface RemoveCommandOptions {
@@ -1239,6 +1536,22 @@ async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void>
 
     const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
 
+    upsertIndexLockEntry(cwd, {
+      id: createIndexId('skills', `skills-sh:${repoName}`, output),
+      kind: 'skills',
+      source: {
+        type: 'skills-sh',
+        name: `skills-sh:${repoName}`,
+        displayName: repoName,
+        repo: repoName,
+        versionMode: 'default-branch',
+      },
+      targetFile: output,
+      marker: 'skills',
+      cachePath: cacheDir,
+      command: `npx agdex skills embed --repo ${repoName}`,
+    })
+
     const action = isNewFile ? 'Created' : 'Updated'
     const sizeInfo = isNewFile
       ? formatSize(sizeAfter)
@@ -1271,6 +1584,21 @@ async function runSkillsEmbed(options: SkillsEmbedCommandOptions): Promise<void>
 
   console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} (${sizeInfo})`)
   console.log(`${pc.green('✓')} Indexed ${pc.bold(result.skillCount!.toString())} skills`)
+
+  upsertIndexLockEntry(cwd, {
+    id: createIndexId('skills', 'local-skills', output),
+    kind: 'skills',
+    source: {
+      type: 'skills-local',
+      name: 'local-skills',
+      displayName: 'Local skills',
+      versionMode: 'unknown',
+    },
+    targetFile: output,
+    marker: 'skills',
+    cachePath: cwd,
+    command: 'npx agdex skills embed',
+  })
 
   // Show breakdown by source
   if (result.sourceBreakdown) {
