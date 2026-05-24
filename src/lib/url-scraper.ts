@@ -330,28 +330,3 @@ export async function pullDocsFromUrl(
     }
   }
 }
-
-/**
- * Create a URL-based documentation provider
- */
-export function createUrlProvider(options: {
-  name: string
-  displayName: string
-  urlConfig: UrlDocConfig
-  extensions?: string[]
-  excludePatterns?: string[]
-  instruction?: string
-}): import('./types').DocProvider {
-  return {
-    name: options.name,
-    displayName: options.displayName,
-    repo: '',
-    docsPath: '',
-    extensions: options.extensions || ['.md'],
-    excludePatterns: options.excludePatterns || [],
-    instruction:
-      options.instruction ||
-      `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any ${options.displayName} tasks.`,
-    urlConfig: options.urlConfig,
-  }
-}

@@ -19,7 +19,7 @@
     "dist"
   ],
   "scripts": {
-    "build": "bun build ./src/index.ts ./src/cli/index.ts --outdir ./dist --target node --splitting && bun run build:types",
+    "build": "rm -rf dist && bun build ./src/index.ts ./src/cli/index.ts --outdir ./dist --target node --splitting && bun run build:types",
     "build:types": "tsc --emitDeclarationOnly --declaration --outDir dist",
     "dev": "bun run --watch src/cli/index.ts",
     "test": "bun test",

@@ -868,7 +868,6 @@ interface UrlCommandOptions {
 
 async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
   const cwd = process.cwd()
-  const { createUrlProvider } = await import('../lib/url-scraper')
   const { pullDocsFromUrl } = await import('../lib/url-scraper')
 
   const name = options.name || new URL(url).hostname.replace(/^docs\./, '').replace(/\.\w+$/, '')

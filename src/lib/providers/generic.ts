@@ -4,7 +4,7 @@
  */
 import fs from 'fs'
 import path from 'path'
-import type { DocProvider, VersionResult } from '../types'
+import type { DocProvider, UrlDocConfig, VersionResult } from '../types'
 
 export interface GenericProviderOptions {
   /** Unique identifier for this provider */
@@ -135,5 +135,30 @@ export function createLocalProvider(options: {
     instruction:
       options.instruction ||
       `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any ${options.displayName} tasks.`,
+  }
+}
+
+/**
+ * Create a URL-based documentation provider.
+ */
+export function createUrlProvider(options: {
+  name: string
+  displayName: string
+  urlConfig: UrlDocConfig
+  extensions?: string[]
+  excludePatterns?: string[]
+  instruction?: string
+}): DocProvider {
+  return {
+    name: options.name,
+    displayName: options.displayName,
+    repo: '',
+    docsPath: '',
+    extensions: options.extensions || ['.md'],
+    excludePatterns: options.excludePatterns || [],
+    instruction:
+      options.instruction ||
+      `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any ${options.displayName} tasks.`,
+    urlConfig: options.urlConfig,
   }
 }
