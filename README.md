@@ -11,10 +11,30 @@ AI coding agents rely on training data that becomes outdated. When agents don't 
 1. Downloads version-matched documentation from GitHub
 2. Creates a compressed index (~8KB for Next.js)
 3. Stores the docs in local `.agdex/` cache
-4. Embeds an index in your local agent instruction file
-5. Agents can then retrieve specific docs on demand
+4. Writes the full index to a dedicated `DOCINDEX.md` file
+5. Adds a small **Document Indices** pointer section to your local agent instruction file (`AGENTS.md` / `CLAUDE.md`)
+6. Agents can then retrieve specific docs on demand
 
-The key instruction embedded tells agents to **prefer retrieval-led reasoning over pre-training-led reasoning**.
+The key instruction tells agents to **prefer retrieval-led reasoning over pre-training-led reasoning**.
+
+### Progressive disclosure
+
+To keep your `AGENTS.md` / `CLAUDE.md` lean, agdex uses a progressive disclosure
+strategy. The full (potentially large) per-provider indexes live in `DOCINDEX.md`,
+while your agent file only gets a compact pointer section that is regenerated
+every time an index is added or removed:
+
+```markdown
+## Document Indices
+
+IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any of the docs found in DOCINDEX.md .
+
+- NVIDIA TensorRT (`tensorrt`)
+- Bun (`bun`)
+```
+
+Agents read this list, then open `DOCINDEX.md` only when they need the detailed
+file index for a specific library.
 
 ## Installation
 
@@ -281,7 +301,7 @@ import {
   collectDocFiles,
   buildDocTree,
   generateIndex,
-  injectIndex
+  applyDocIndex
 } from 'agdex'
 
 // Collect doc files
@@ -300,8 +320,15 @@ const index = generateIndex({
   instruction: 'Use retrieval-led reasoning.'
 })
 
-// Inject into existing content
-const newContent = injectIndex(existingContent, index)
+// Progressive disclosure: write the full index to DOCINDEX.md and refresh
+// the "## Document Indices" summary section in the agent file.
+applyDocIndex({
+  cwd: process.cwd(),
+  agentFile: 'CLAUDE.md',
+  providerName: 'my-docs',
+  indexContent: index,
+  // docIndexFile defaults to DOCINDEX.md
+})
 ```
 
 ## Output Format
@@ -351,8 +378,9 @@ This format:
 2. **Download**: Uses git sparse-checkout to fetch only docs folder
 3. **Index**: Builds a tree of all doc files
 4. **Compress**: Generates pipe-delimited format
-5. **Inject**: Adds to AGENTS.md with markers for updates
-6. **Gitignore**: Adds docs directory to .gitignore
+5. **Write index**: Writes/updates the full index in `DOCINDEX.md` (one marked block per provider)
+6. **Summarize**: Refreshes the `## Document Indices` pointer section in `AGENTS.md` / `CLAUDE.md` with the current list of indices
+7. **Gitignore**: Adds docs directory to .gitignore
 
 ## Contributing
 

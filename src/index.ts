@@ -50,6 +50,15 @@ export {
   ensureGitignoreEntry,
   getGlobalCacheDir,
   getLocalCacheDir,
+  // Progressive disclosure (DOCINDEX.md + summary section)
+  DEFAULT_DOC_INDEX_FILE,
+  getDocIndexEntries,
+  generateDocIndexSummary,
+  hasDocIndexSummary,
+  injectDocIndexSummary,
+  removeDocIndexSummary,
+  applyDocIndex,
+  removeDocIndexEntry,
 } from './lib/agents-md'
 
 // Providers
@@ -99,11 +108,13 @@ export {
   readIndexLockfile,
   writeIndexLockfile,
   upsertIndexLockEntry,
+  removeIndexLockEntries,
 } from './lib/lockfile'
 export {
   createStatusReport,
   getDefaultStatusTargets,
   readEmbeddedMarkers,
+  readDocIndexMarkers,
 } from './lib/index-maintenance'
 export type {
   IndexLockEntry,
@@ -124,6 +135,7 @@ export type {
   DocProvider,
   DocFile,
   DocSection,
+  DocIndexEntry,
   VersionResult,
   PullResult,
   GitignoreStatus,

@@ -12,6 +12,17 @@ export interface DocSection {
   subsections: DocSection[]
 }
 
+/**
+ * A single documentation index present in DOCINDEX.md.
+ * Used to build the progressive-disclosure summary list in AGENTS.md/CLAUDE.md.
+ */
+export interface DocIndexEntry {
+  /** Marker/provider name (used by --provider and the embed markers) */
+  name: string
+  /** Human-readable display name parsed from the index header */
+  displayName: string
+}
+
 export interface VersionResult {
   version: string | null
   error?: string
@@ -146,6 +157,9 @@ export interface EmbedOptions {
 
   /** Additional user-provided description to include in the index */
   description?: string
+
+  /** File the full docs index is written to (default: DOCINDEX.md) */
+  docIndexFile?: string
 }
 
 export interface EmbedResult {
@@ -159,6 +173,12 @@ export interface EmbedResult {
   gitignoreUpdated?: boolean
   cacheHit?: boolean
   error?: string
+  /** File the full docs index was written to (e.g. DOCINDEX.md) */
+  docIndexFile?: string
+  /** Size of the doc index file before this embed */
+  docIndexSizeBefore?: number
+  /** Size of the doc index file after this embed */
+  docIndexSizeAfter?: number
 }
 
 // Skills types

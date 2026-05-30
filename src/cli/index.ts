@@ -12,11 +12,11 @@ import {
   collectDocFiles,
   buildDocTree,
   generateIndex,
-  injectIndex,
+  applyDocIndex,
+  removeDocIndexEntry,
+  getDocIndexEntries,
   ensureGitignoreEntry,
-  hasExistingIndex,
-  removeDocsIndex,
-  getEmbeddedProviders,
+  DEFAULT_DOC_INDEX_FILE,
 } from '../lib/agents-md'
 import {
   embedSkills,
@@ -61,6 +61,7 @@ import {
   createIndexId,
   readIndexLockfile,
   upsertIndexLockEntry,
+  removeIndexLockEntries,
 } from '../lib/lockfile'
 import fs from 'fs'
 import path from 'path'
@@ -246,12 +247,20 @@ async function executeEmbed(
     console.log(`${pc.green('✓')} Downloaded docs to ${pc.bold(result.docsPath!)}`)
   }
 
+  if (result.docIndexFile) {
+    const docSizeInfo =
+      result.docIndexSizeBefore === 0
+        ? formatSize(result.docIndexSizeAfter!)
+        : `${formatSize(result.docIndexSizeBefore!)} → ${formatSize(result.docIndexSizeAfter!)}`
+    console.log(`${pc.green('✓')} Wrote index to ${pc.bold(result.docIndexFile)} (${docSizeInfo})`)
+  }
+
   const action = result.isNewFile ? 'Created' : 'Updated'
   const sizeInfo = result.isNewFile
     ? formatSize(result.sizeAfter!)
     : `${formatSize(result.sizeBefore!)} → ${formatSize(result.sizeAfter!)}`
 
-  console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} (${sizeInfo})`)
+  console.log(`${pc.green('✓')} ${action} ${pc.bold(result.targetFile!)} summary (${sizeInfo})`)
 
   if (result.gitignoreUpdated) {
     console.log(`${pc.green('✓')} Added ${pc.bold('.agdex')} to .gitignore`)
@@ -800,17 +809,6 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
 
   console.log(`\nBuilding index from ${pc.cyan(docsPath)}...`)
 
-  const targetPath = path.join(cwd, output)
-  let existingContent = ''
-  let sizeBefore = 0
-  let isNewFile = true
-
-  if (fs.existsSync(targetPath)) {
-    existingContent = fs.readFileSync(targetPath, 'utf-8')
-    sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
-    isNewFile = false
-  }
-
   const docFiles = collectDocFiles(absoluteDocsPath, { extensions })
   const sections = buildDocTree(docFiles)
 
@@ -825,10 +823,7 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
 
   // Use a sanitized name for the marker (lowercase, no spaces)
   const providerName = name.toLowerCase().replace(/\s+/g, '-')
-  const newContent = injectIndex(existingContent, indexContent, providerName)
-  fs.writeFileSync(targetPath, newContent, 'utf-8')
-
-  const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
+  const applied = applyDocIndex({ cwd, agentFile: output, providerName, indexContent })
 
   upsertIndexLockEntry(cwd, {
     id: createIndexId('docs', providerName, output),
@@ -846,12 +841,24 @@ async function runLocal(docsPath: string, options: LocalCommandOptions): Promise
     command: `npx agdex local ${docsPath} --name "${name}" --output ${output}`,
   })
 
-  const action = isNewFile ? 'Created' : 'Updated'
-  const sizeInfo = isNewFile
-    ? formatSize(sizeAfter)
-    : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
+  printApplyResult(applied)
+}
 
-  console.log(`${pc.green('✓')} ${action} ${pc.bold(output)} (${sizeInfo})`)
+/**
+ * Print the standard "wrote DOCINDEX + updated summary" output for an applied index.
+ */
+function printApplyResult(applied: ReturnType<typeof applyDocIndex>): void {
+  const docSizeInfo =
+    applied.docIndexSizeBefore === 0
+      ? formatSize(applied.docIndexSizeAfter)
+      : `${formatSize(applied.docIndexSizeBefore)} → ${formatSize(applied.docIndexSizeAfter)}`
+  console.log(`${pc.green('✓')} Wrote index to ${pc.bold(applied.docIndexFile)} (${docSizeInfo})`)
+
+  const action = applied.isNewAgentFile ? 'Created' : 'Updated'
+  const sizeInfo = applied.isNewAgentFile
+    ? formatSize(applied.agentSizeAfter)
+    : `${formatSize(applied.agentSizeBefore)} → ${formatSize(applied.agentSizeAfter)}`
+  console.log(`${pc.green('✓')} ${action} ${pc.bold(applied.agentFile)} summary (${sizeInfo})`)
   console.log('')
 }
 
@@ -913,17 +920,6 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
   }
 
   // Build index from the downloaded markdown files
-  const targetPath = path.join(cwd, output)
-  let existingContent = ''
-  let sizeBefore = 0
-  let isNewFile = true
-
-  if (fs.existsSync(targetPath)) {
-    existingContent = fs.readFileSync(targetPath, 'utf-8')
-    sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
-    isNewFile = false
-  }
-
   const docFiles = collectDocFiles(docsPath, { extensions: ['.md'] })
   const sections = buildDocTree(docFiles)
 
@@ -936,10 +932,7 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
     regenerateCommand: `npx agdex url "${url}" --name "${name}" --output ${output}${globalCache ? ' --global' : ''}`,
   })
 
-  const newContent = injectIndex(existingContent, indexContent, providerName)
-  fs.writeFileSync(targetPath, newContent, 'utf-8')
-
-  const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
+  const applied = applyDocIndex({ cwd, agentFile: output, providerName, indexContent })
 
   upsertIndexLockEntry(cwd, {
     id: createIndexId('docs', providerName, output),
@@ -958,19 +951,14 @@ async function runUrl(url: string, options: UrlCommandOptions): Promise<void> {
     command: `npx agdex url "${url}" --name "${name}" --output ${output}${globalCache ? ' --global' : ''}`,
   })
 
-  const action = isNewFile ? 'Created' : 'Updated'
-  const sizeInfo = isNewFile
-    ? formatSize(sizeAfter)
-    : `${formatSize(sizeBefore)} → ${formatSize(sizeAfter)}`
-
-  console.log(`${pc.green('✓')} ${action} ${pc.bold(output)} (${sizeInfo})`)
   if (!globalCache) {
     const gitignoreResult = ensureGitignoreEntry(cwd, '.agdex')
     if (gitignoreResult.updated) {
       console.log(`${pc.green('✓')} Added ${pc.bold('.agdex')} to .gitignore`)
     }
   }
-  console.log('')
+
+  printApplyResult(applied)
 }
 
 // List providers command
@@ -1318,34 +1306,38 @@ interface RemoveCommandOptions {
   provider?: string
 }
 
+/** Remove a skills index from the agent file (re-reads the file fresh). */
+function removeSkillsFromAgentFile(targetPath: string): boolean {
+  const content = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf-8') : ''
+  if (!hasExistingSkillsIndex(content)) return false
+  fs.writeFileSync(targetPath, removeSkillsIndex(content), 'utf-8')
+  return true
+}
+
 async function runRemove(options: RemoveCommandOptions): Promise<void> {
   const cwd = process.cwd()
   const output = options.output || getDefaultOutput()
   const targetPath = path.join(cwd, output)
+  const docIndexPath = path.join(cwd, DEFAULT_DOC_INDEX_FILE)
 
-  if (!fs.existsSync(targetPath)) {
-    console.error(pc.red(`File not found: ${output}`))
-    process.exit(1)
-  }
-
-  let content = fs.readFileSync(targetPath, 'utf-8')
-  const sizeBefore = Buffer.byteLength(content, 'utf-8')
+  const agentContent = fs.existsSync(targetPath) ? fs.readFileSync(targetPath, 'utf-8') : ''
+  const docIndexContent = fs.existsSync(docIndexPath) ? fs.readFileSync(docIndexPath, 'utf-8') : ''
 
   const hasExplicitFlags = options.docs || options.skills || options.provider
 
   if (!hasExplicitFlags) {
     // Interactive mode: show checklist of active indices
-    const embeddedProviders = getEmbeddedProviders(content)
-    const hasSkills = hasExistingSkillsIndex(content)
+    const docEntries = getDocIndexEntries(docIndexContent)
+    const hasSkills = hasExistingSkillsIndex(agentContent)
 
-    if (embeddedProviders.length === 0 && !hasSkills) {
+    if (docEntries.length === 0 && !hasSkills) {
       console.log(pc.yellow('\nNo indices found to remove.\n'))
       return
     }
 
     const choices: { title: string; value: string }[] = []
-    for (const provider of embeddedProviders) {
-      choices.push({ title: `docs: ${provider}`, value: `docs:${provider}` })
+    for (const entry of docEntries) {
+      choices.push({ title: `docs: ${entry.displayName} (${entry.name})`, value: `docs:${entry.name}` })
     }
     if (hasSkills) {
       choices.push({ title: 'skills', value: 'skills' })
@@ -1366,32 +1358,27 @@ async function runRemove(options: RemoveCommandOptions): Promise<void> {
     }
 
     const selected: string[] = response.indices
-    let docsRemoved: string[] = []
+    const docsRemoved: string[] = []
     let skillsRemoved = false
 
     for (const item of selected) {
-      if (item === 'skills') {
-        content = removeSkillsIndex(content)
-        skillsRemoved = true
-      } else if (item.startsWith('docs:')) {
+      if (item.startsWith('docs:')) {
         const provider = item.slice(5)
-        content = removeDocsIndex(content, provider)
-        docsRemoved.push(provider)
+        const res = removeDocIndexEntry({ cwd, agentFile: output, providerName: provider })
+        if (res.removed) {
+          docsRemoved.push(...res.removedProviders)
+          for (const removedProvider of res.removedProviders) {
+            removeIndexLockEntries(cwd, { kind: 'docs', marker: removedProvider })
+          }
+        }
       }
     }
-
-    fs.writeFileSync(targetPath, content, 'utf-8')
-    const sizeAfter = Buffer.byteLength(content, 'utf-8')
-
-    console.log('')
-    for (const provider of docsRemoved) {
-      console.log(`${pc.green('✓')} Removed docs index (${provider}) from ${pc.bold(output)}`)
+    if (selected.includes('skills')) {
+      skillsRemoved = removeSkillsFromAgentFile(targetPath)
+      if (skillsRemoved) removeIndexLockEntries(cwd, { kind: 'skills', targetFile: output })
     }
-    if (skillsRemoved) {
-      console.log(`${pc.green('✓')} Removed skills index from ${pc.bold(output)}`)
-    }
-    console.log(pc.gray(`  (${formatSize(sizeBefore)} → ${formatSize(sizeAfter)})`))
-    console.log('')
+
+    printRemoveResult(docsRemoved, skillsRemoved, output)
     return
   }
 
@@ -1400,44 +1387,48 @@ async function runRemove(options: RemoveCommandOptions): Promise<void> {
   const removeDocs = removeAll || options.docs
   const removeSkillsIdx = removeAll || options.skills
 
-  let docsRemoved = false
+  const docsRemoved: string[] = []
   let skillsRemoved = false
 
-  if (removeDocs && hasExistingIndex(content, options.provider)) {
-    content = removeDocsIndex(content, options.provider)
-    docsRemoved = true
+  if (removeDocs) {
+    const res = removeDocIndexEntry({ cwd, agentFile: output, providerName: options.provider })
+    if (res.removed) {
+      docsRemoved.push(...res.removedProviders)
+      for (const removedProvider of res.removedProviders) {
+        removeIndexLockEntries(cwd, { kind: 'docs', marker: removedProvider })
+      }
+    }
   }
 
-  if (removeSkillsIdx && hasExistingSkillsIndex(content)) {
-    content = removeSkillsIndex(content)
-    skillsRemoved = true
+  if (removeSkillsIdx) {
+    skillsRemoved = removeSkillsFromAgentFile(targetPath)
+    if (skillsRemoved) removeIndexLockEntries(cwd, { kind: 'skills', targetFile: output })
   }
 
-  if (!docsRemoved && !skillsRemoved) {
+  if (docsRemoved.length === 0 && !skillsRemoved) {
     console.log(pc.yellow('\nNo indices found to remove.\n'))
     return
   }
 
-  fs.writeFileSync(targetPath, content, 'utf-8')
-  const sizeAfter = Buffer.byteLength(content, 'utf-8')
+  printRemoveResult(docsRemoved, skillsRemoved, output)
+}
 
+function printRemoveResult(docsRemoved: string[], skillsRemoved: boolean, output: string): void {
   console.log('')
-  if (docsRemoved) {
-    const providerInfo = options.provider ? ` (${options.provider})` : ' (all providers)'
-    console.log(`${pc.green('✓')} Removed docs index${providerInfo} from ${pc.bold(output)}`)
+  for (const provider of docsRemoved) {
+    console.log(`${pc.green('✓')} Removed docs index (${provider}) from ${pc.bold(DEFAULT_DOC_INDEX_FILE)}`)
   }
   if (skillsRemoved) {
     console.log(`${pc.green('✓')} Removed skills index from ${pc.bold(output)}`)
   }
-  console.log(pc.gray(`  (${formatSize(sizeBefore)} → ${formatSize(sizeAfter)})`))
   console.log('')
 }
 
 program
   .command('remove')
-  .description('Remove embedded indices from AGENTS.md/CLAUDE.md')
+  .description('Remove docs indices from DOCINDEX.md (and skills indices from AGENTS.md/CLAUDE.md)')
   .option('-o, --output <file>', 'Target file (default: from config or CLAUDE.local.md)')
-  .option('--docs', 'Remove only docs index')
+  .option('--docs', 'Remove only docs indices (from DOCINDEX.md)')
   .option('--skills', 'Remove only skills index')
   .option('-p, --provider <name>', 'Remove only a specific provider\'s docs index')
   .action(runRemove)

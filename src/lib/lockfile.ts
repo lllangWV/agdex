@@ -110,3 +110,34 @@ export function upsertIndexLockEntry(cwd: string, entry: Omit<IndexLockEntry, 'u
   writeIndexLockfile(cwd, lockfile)
   return nextEntry
 }
+
+/**
+ * Remove lockfile entries matching the given criteria. Returns the ids removed.
+ * Omitting a field treats it as a wildcard for that field.
+ */
+export function removeIndexLockEntries(
+  cwd: string,
+  criteria: { kind?: 'docs' | 'skills'; marker?: string; targetFile?: string }
+): string[] {
+  const lockfile = readIndexLockfile(cwd)
+  const normalizedTarget = criteria.targetFile ? normalizeRelativePath(criteria.targetFile) : undefined
+
+  const removed: string[] = []
+  const kept = lockfile.indexes.filter((entry) => {
+    const matches =
+      (criteria.kind === undefined || entry.kind === criteria.kind) &&
+      (criteria.marker === undefined || entry.marker === criteria.marker) &&
+      (normalizedTarget === undefined || entry.targetFile === normalizedTarget)
+    if (matches) {
+      removed.push(entry.id)
+      return false
+    }
+    return true
+  })
+
+  if (removed.length > 0) {
+    writeIndexLockfile(cwd, { schemaVersion: LOCKFILE_SCHEMA_VERSION, indexes: kept })
+  }
+
+  return removed
+}

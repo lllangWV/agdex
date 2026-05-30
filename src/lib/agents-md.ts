@@ -12,6 +12,7 @@ import type {
   DocProvider,
   DocFile,
   DocSection,
+  DocIndexEntry,
   PullResult,
   GitignoreStatus,
   IndexOptions,
@@ -23,6 +24,13 @@ import { createIndexId, upsertIndexLockEntry } from './lockfile'
 const START_MARKER_PREFIX = '<!-- AGENTS-MD-EMBED-START'
 const END_MARKER_PREFIX = '<!-- AGENTS-MD-EMBED-END'
 const MARKER_SUFFIX = ' -->'
+
+/** Default file the full docs index is written to (progressive disclosure). */
+export const DEFAULT_DOC_INDEX_FILE = 'DOCINDEX.md'
+
+/** Markers wrapping the "## Document Indices" summary section in AGENTS.md/CLAUDE.md. */
+const DOC_SUMMARY_START_MARKER = '<!-- AGENTS-MD-DOCINDEX-SUMMARY-START -->'
+const DOC_SUMMARY_END_MARKER = '<!-- AGENTS-MD-DOCINDEX-SUMMARY-END -->'
 
 function getStartMarker(providerName?: string): string {
   return providerName
@@ -468,8 +476,286 @@ export function injectIndex(existingContent: string, indexContent: string, provi
     )
   }
 
+  if (existingContent.length === 0) {
+    return wrappedContent + '\n'
+  }
+
   const separator = existingContent.endsWith('\n') ? '\n' : '\n\n'
   return existingContent + separator + wrappedContent + '\n'
+}
+
+/**
+ * Parse the documentation indices present in a DOCINDEX.md file.
+ *
+ * Each index is wrapped in AGENTS-MD-EMBED-START/END markers and begins with a
+ * `[<displayName> Docs Index]` header. Returns the marker name plus a readable
+ * display name for each index, in document order.
+ */
+export function getDocIndexEntries(content: string): DocIndexEntry[] {
+  const entries: DocIndexEntry[] = []
+  const regex = /<!-- AGENTS-MD-EMBED-START:(\S+?) -->\r?\n([\s\S]*?)<!-- AGENTS-MD-EMBED-END:\1 -->/g
+  let match: RegExpExecArray | null
+
+  while ((match = regex.exec(content)) !== null) {
+    const name = match[1]
+    const block = match[2]
+    const headerMatch = block.match(/\[(.+?)\]/)
+    let displayName = name
+    if (headerMatch) {
+      const parsed = headerMatch[1].replace(/\s*Docs Index$/, '').trim()
+      displayName = parsed || name
+    }
+    entries.push({ name, displayName })
+  }
+
+  return entries
+}
+
+/**
+ * Generate the progressive-disclosure summary section that lives in
+ * AGENTS.md/CLAUDE.md. It points agents at the full index file and lists the
+ * documentation indices currently available there.
+ */
+export function generateDocIndexSummary(
+  entries: DocIndexEntry[],
+  docIndexFile: string = DEFAULT_DOC_INDEX_FILE
+): string {
+  const lines = [
+    '## Document Indices',
+    '',
+    `IMPORTANT: Prefer retrieval-led reasoning over pre-training-led reasoning for any of the docs found in ${docIndexFile} .`,
+    '',
+  ]
+
+  if (entries.length === 0) {
+    lines.push('_No documentation indices available yet._')
+  } else {
+    for (const entry of entries) {
+      lines.push(`- ${entry.displayName} (\`${entry.name}\`)`)
+    }
+  }
+
+  return lines.join('\n')
+}
+
+/**
+ * Check whether content already contains the Document Indices summary section
+ */
+export function hasDocIndexSummary(content: string): boolean {
+  return content.includes(DOC_SUMMARY_START_MARKER)
+}
+
+/**
+ * Inject (or replace) the Document Indices summary section in AGENTS.md/CLAUDE.md
+ */
+export function injectDocIndexSummary(existingContent: string, summaryContent: string): string {
+  const wrappedContent = `${DOC_SUMMARY_START_MARKER}\n${summaryContent}\n${DOC_SUMMARY_END_MARKER}`
+
+  if (hasDocIndexSummary(existingContent)) {
+    const startIdx = existingContent.indexOf(DOC_SUMMARY_START_MARKER)
+    const endIdx = existingContent.indexOf(DOC_SUMMARY_END_MARKER) + DOC_SUMMARY_END_MARKER.length
+
+    return (
+      existingContent.slice(0, startIdx) +
+      wrappedContent +
+      existingContent.slice(endIdx)
+    )
+  }
+
+  if (existingContent.length === 0) {
+    return wrappedContent + '\n'
+  }
+
+  const separator = existingContent.endsWith('\n') ? '\n' : '\n\n'
+  return existingContent + separator + wrappedContent + '\n'
+}
+
+/**
+ * Remove the Document Indices summary section from content
+ */
+export function removeDocIndexSummary(content: string): string {
+  if (!hasDocIndexSummary(content)) {
+    return content
+  }
+
+  const startIdx = content.indexOf(DOC_SUMMARY_START_MARKER)
+  const endIdx = content.indexOf(DOC_SUMMARY_END_MARKER) + DOC_SUMMARY_END_MARKER.length
+
+  let result = content.slice(0, startIdx) + content.slice(endIdx)
+  result = result.replace(/\n{3,}/g, '\n\n')
+  result = result.trimEnd()
+  if (result.length > 0) {
+    result += '\n'
+  }
+
+  return result
+}
+
+export interface ApplyDocIndexResult {
+  docIndexFile: string
+  docIndexPath: string
+  agentFile: string
+  agentPath: string
+  isNewAgentFile: boolean
+  agentSizeBefore: number
+  agentSizeAfter: number
+  docIndexSizeBefore: number
+  docIndexSizeAfter: number
+  entries: DocIndexEntry[]
+}
+
+/**
+ * Apply a generated index using the progressive-disclosure strategy:
+ *   1. Write/replace the full index block in DOCINDEX.md (keyed by providerName)
+ *   2. Refresh the "## Document Indices" summary section in the agent file
+ *      (AGENTS.md/CLAUDE.md) so it lists every index currently in DOCINDEX.md.
+ */
+export function applyDocIndex(options: {
+  cwd: string
+  agentFile: string
+  providerName: string
+  indexContent: string
+  docIndexFile?: string
+}): ApplyDocIndexResult {
+  const { cwd, agentFile, providerName, indexContent } = options
+  const docIndexFile = options.docIndexFile || DEFAULT_DOC_INDEX_FILE
+  const docIndexPath = path.join(cwd, docIndexFile)
+  const agentPath = path.join(cwd, agentFile)
+
+  // 1. Update DOCINDEX.md
+  let docIndexContent = ''
+  let docIndexSizeBefore = 0
+  if (fs.existsSync(docIndexPath)) {
+    docIndexContent = fs.readFileSync(docIndexPath, 'utf-8')
+    docIndexSizeBefore = Buffer.byteLength(docIndexContent, 'utf-8')
+  }
+
+  const newDocIndexContent = injectIndex(docIndexContent, indexContent, providerName)
+  fs.writeFileSync(docIndexPath, newDocIndexContent, 'utf-8')
+  const docIndexSizeAfter = Buffer.byteLength(newDocIndexContent, 'utf-8')
+
+  // 2. Refresh the summary section in the agent file
+  let agentContent = ''
+  let agentSizeBefore = 0
+  let isNewAgentFile = true
+  if (fs.existsSync(agentPath)) {
+    agentContent = fs.readFileSync(agentPath, 'utf-8')
+    agentSizeBefore = Buffer.byteLength(agentContent, 'utf-8')
+    isNewAgentFile = false
+  }
+
+  const entries = getDocIndexEntries(newDocIndexContent)
+  const summary = generateDocIndexSummary(entries, docIndexFile)
+  const newAgentContent = injectDocIndexSummary(agentContent, summary)
+  fs.writeFileSync(agentPath, newAgentContent, 'utf-8')
+  const agentSizeAfter = Buffer.byteLength(newAgentContent, 'utf-8')
+
+  return {
+    docIndexFile,
+    docIndexPath,
+    agentFile,
+    agentPath,
+    isNewAgentFile,
+    agentSizeBefore,
+    agentSizeAfter,
+    docIndexSizeBefore,
+    docIndexSizeAfter,
+    entries,
+  }
+}
+
+export interface RemoveDocIndexResult {
+  removed: boolean
+  removedProviders: string[]
+  docIndexFile: string
+  docIndexDeleted: boolean
+  agentFile: string
+  agentSizeBefore: number
+  agentSizeAfter: number
+  docIndexSizeBefore: number
+  docIndexSizeAfter: number
+}
+
+/**
+ * Remove one (or all) documentation indices from DOCINDEX.md and refresh the
+ * summary section in the agent file. If no indices remain, DOCINDEX.md is
+ * deleted and the summary section is removed from the agent file.
+ */
+export function removeDocIndexEntry(options: {
+  cwd: string
+  agentFile: string
+  providerName?: string
+  docIndexFile?: string
+}): RemoveDocIndexResult {
+  const { cwd, agentFile, providerName } = options
+  const docIndexFile = options.docIndexFile || DEFAULT_DOC_INDEX_FILE
+  const docIndexPath = path.join(cwd, docIndexFile)
+  const agentPath = path.join(cwd, agentFile)
+
+  const base: RemoveDocIndexResult = {
+    removed: false,
+    removedProviders: [],
+    docIndexFile,
+    docIndexDeleted: false,
+    agentFile,
+    agentSizeBefore: 0,
+    agentSizeAfter: 0,
+    docIndexSizeBefore: 0,
+    docIndexSizeAfter: 0,
+  }
+
+  if (!fs.existsSync(docIndexPath)) {
+    return base
+  }
+
+  const docIndexContent = fs.readFileSync(docIndexPath, 'utf-8')
+  base.docIndexSizeBefore = Buffer.byteLength(docIndexContent, 'utf-8')
+
+  if (!hasExistingIndex(docIndexContent, providerName)) {
+    base.docIndexSizeAfter = base.docIndexSizeBefore
+    return base
+  }
+
+  // Track which providers are being removed for reporting
+  const before = getEmbeddedProviders(docIndexContent)
+  const newDocIndexContent = removeDocsIndex(docIndexContent, providerName)
+  const after = getEmbeddedProviders(newDocIndexContent)
+  base.removedProviders = before.filter((p) => !after.includes(p))
+  base.removed = true
+
+  const remainingEntries = getDocIndexEntries(newDocIndexContent)
+
+  // Update the agent file's summary section
+  let agentContent = ''
+  if (fs.existsSync(agentPath)) {
+    agentContent = fs.readFileSync(agentPath, 'utf-8')
+    base.agentSizeBefore = Buffer.byteLength(agentContent, 'utf-8')
+  }
+
+  if (remainingEntries.length === 0) {
+    // Nothing left: drop DOCINDEX.md entirely and remove the summary section
+    fs.rmSync(docIndexPath)
+    base.docIndexDeleted = true
+    base.docIndexSizeAfter = 0
+
+    const newAgentContent = removeDocIndexSummary(agentContent)
+    if (fs.existsSync(agentPath)) {
+      fs.writeFileSync(agentPath, newAgentContent, 'utf-8')
+    }
+    base.agentSizeAfter = Buffer.byteLength(newAgentContent, 'utf-8')
+  } else {
+    fs.writeFileSync(docIndexPath, newDocIndexContent, 'utf-8')
+    base.docIndexSizeAfter = Buffer.byteLength(newDocIndexContent, 'utf-8')
+
+    const summary = generateDocIndexSummary(remainingEntries, docIndexFile)
+    const newAgentContent = injectDocIndexSummary(agentContent, summary)
+    if (fs.existsSync(agentPath) || newAgentContent.length > 0) {
+      fs.writeFileSync(agentPath, newAgentContent, 'utf-8')
+    }
+    base.agentSizeAfter = Buffer.byteLength(newAgentContent, 'utf-8')
+  }
+
+  return base
 }
 
 /**
@@ -527,6 +813,7 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     docsDir: customDocsDir,
     globalCache = false,
     description,
+    docIndexFile = DEFAULT_DOC_INDEX_FILE,
   } = options
 
   // Determine the docs directory
@@ -550,19 +837,6 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     docsDir = `.agdex/${provider.name}`
     docsPath = path.join(cwd, docsDir)
     docsLinkPath = `./${docsDir}`
-  }
-
-  const targetPath = path.join(cwd, output)
-
-  // Track file sizes
-  let sizeBefore = 0
-  let isNewFile = true
-  let existingContent = ''
-
-  if (fs.existsSync(targetPath)) {
-    existingContent = fs.readFileSync(targetPath, 'utf-8')
-    sizeBefore = Buffer.byteLength(existingContent, 'utf-8')
-    isNewFile = false
   }
 
   // Check if docs are already available in the cache
@@ -620,11 +894,15 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     regenerateCommand,
   })
 
-  // Inject into target file (use provider name for unique markers)
-  const newContent = injectIndex(existingContent, indexContent, provider.name)
-  fs.writeFileSync(targetPath, newContent, 'utf-8')
-
-  const sizeAfter = Buffer.byteLength(newContent, 'utf-8')
+  // Progressive disclosure: write the full index to DOCINDEX.md and refresh
+  // the "## Document Indices" summary section in the agent file.
+  const applied = applyDocIndex({
+    cwd,
+    agentFile: output,
+    providerName: provider.name,
+    indexContent,
+    docIndexFile,
+  })
 
   // Update .gitignore (only for local cache, not global)
   let gitignoreUpdated = false
@@ -664,11 +942,14 @@ export async function embed(options: EmbedOptions): Promise<EmbedResult> {
     targetFile: output,
     docsPath: globalCache ? docsPath : docsDir,
     version: pullResult.version,
-    sizeBefore,
-    sizeAfter,
-    isNewFile,
+    sizeBefore: applied.agentSizeBefore,
+    sizeAfter: applied.agentSizeAfter,
+    isNewFile: applied.isNewAgentFile,
     gitignoreUpdated,
     cacheHit,
+    docIndexFile: applied.docIndexFile,
+    docIndexSizeBefore: applied.docIndexSizeBefore,
+    docIndexSizeAfter: applied.docIndexSizeAfter,
   }
 }
 
@@ -677,6 +958,7 @@ export type {
   DocProvider,
   DocFile,
   DocSection,
+  DocIndexEntry,
   PullResult,
   GitignoreStatus,
   IndexOptions,

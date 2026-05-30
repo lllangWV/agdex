@@ -11,6 +11,31 @@ import {
 const DOCS_MARKER_REGEX = /<!-- AGENTS-MD-EMBED-START:(\S+?) -->/g
 const SKILLS_START_MARKER = '<!-- AGENTS-MD-SKILLS-START -->'
 
+/**
+ * File the full docs indices live in under the progressive-disclosure strategy.
+ * Kept in sync with DEFAULT_DOC_INDEX_FILE in agents-md.ts.
+ */
+const DOC_INDEX_FILE = 'DOCINDEX.md'
+
+/**
+ * Read the docs marker names present in DOCINDEX.md. Under progressive
+ * disclosure the full per-provider index blocks live here rather than inline
+ * in the agent instruction file.
+ */
+export function readDocIndexMarkers(cwd: string): Set<string> {
+  const docIndexPath = path.join(cwd, DOC_INDEX_FILE)
+  const names = new Set<string>()
+  if (!fs.existsSync(docIndexPath)) return names
+
+  const content = fs.readFileSync(docIndexPath, 'utf-8')
+  const regex = new RegExp(DOCS_MARKER_REGEX.source, 'g')
+  let match: RegExpExecArray | null
+  while ((match = regex.exec(content)) !== null) {
+    names.add(match[1])
+  }
+  return names
+}
+
 export type IndexHealth =
   | 'ok'
   | 'missing-target'
@@ -90,22 +115,33 @@ export function createStatusReport(options: StatusOptions): StatusReport {
     : getScannedFiles(cwd, lockfile)
 
   const markers = scannedFiles.flatMap((targetFile) => readEmbeddedMarkers(cwd, targetFile))
+  // Under progressive disclosure the docs marker blocks live in DOCINDEX.md
+  // rather than inline in the agent file, so check there too.
+  const docIndexMarkers = readDocIndexMarkers(cwd)
   const indexes: IndexStatus[] = []
   const seenMarkers = new Set<string>()
+  const trackedDocsMarkers = new Set<string>()
 
   for (const entry of lockfile.indexes) {
     if (options.targetFile && entry.targetFile !== options.targetFile) continue
 
     const markerKey = getMarkerKey(entry.kind, entry.marker, entry.targetFile)
-    const marker = markers.find(
+    const markerInFile = markers.find(
       (candidate) =>
         candidate.kind === entry.kind &&
         candidate.marker === entry.marker &&
         candidate.targetFile === entry.targetFile
     )
-    if (marker) seenMarkers.add(markerKey)
+    // Docs markers are considered present if they exist inline (legacy) or in
+    // the shared DOCINDEX.md (progressive disclosure).
+    const hasMarker =
+      entry.kind === 'docs'
+        ? Boolean(markerInFile) || docIndexMarkers.has(entry.marker)
+        : Boolean(markerInFile)
+    if (markerInFile) seenMarkers.add(markerKey)
+    if (entry.kind === 'docs') trackedDocsMarkers.add(entry.marker)
 
-    indexes.push(analyzeLockfileEntry(cwd, entry, Boolean(marker)))
+    indexes.push(analyzeLockfileEntry(cwd, entry, hasMarker))
   }
 
   for (const marker of markers) {
@@ -118,6 +154,20 @@ export function createStatusReport(options: StatusOptions): StatusReport {
       health: 'untracked-marker',
       targetFile: marker.targetFile,
       marker: marker.marker,
+      suggestedAction: 'Run `agdex migrate` or rerun the embed command to create a lockfile entry.',
+    })
+  }
+
+  // Surface docs indices that exist in DOCINDEX.md but have no lockfile entry.
+  for (const name of docIndexMarkers) {
+    if (trackedDocsMarkers.has(name)) continue
+
+    indexes.push({
+      id: `untracked:docs:${name}:${DOC_INDEX_FILE}`,
+      kind: 'docs',
+      health: 'untracked-marker',
+      targetFile: DOC_INDEX_FILE,
+      marker: name,
       suggestedAction: 'Run `agdex migrate` or rerun the embed command to create a lockfile entry.',
     })
   }
